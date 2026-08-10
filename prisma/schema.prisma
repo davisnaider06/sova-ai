@@ -1,0 +1,148 @@
+// Schema do Sova AI — Postgres (Neon).
+// Depois que a DATABASE_URL estiver configurada em .env.local, rode:
+//   npx prisma db push      (cria as tabelas no Neon)
+//   npx prisma generate     (gera o client tipado)
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Plan {
+  STARTER
+  PRO
+  ELITE
+}
+
+enum Level {
+  BAIXA
+  MEDIA
+  ALTA
+}
+
+enum Trend {
+  UP
+  DOWN
+}
+
+model User {
+  id         String   @id // Clerk user id (ex: user_xxx)
+  email      String   @unique
+  name       String?
+  storeName  String?
+  plan       Plan     @default(STARTER)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  analyses    ProductAnalysis[]
+  favorites   Favorite[]
+  activities  ActivityLog[]
+  salesPages  SalesPage[]
+}
+
+model Product {
+  id               String   @id @default(cuid())
+  name             String
+  category         String
+  image            String
+  price            Float
+  margin           Float
+  salesVolume      Int
+  creators         Int      @default(0)
+  competition      Level
+  demand           Level
+  opportunityScore Int
+  growth           Float
+  createdAt        DateTime @default(now())
+
+  favorites Favorite[]
+}
+
+model ProductAnalysis {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  inputUrl         String
+  name             String
+  category         String
+  image            String
+  priceSuggested   Float
+  marginEstimated  Float
+  salesVolume      Int
+  competition      Level
+  demand           Level
+  opportunityScore Int
+  profitForecast   Float
+  script           String   @db.Text
+  caption          String   @db.Text
+  description      String   @db.Text
+  hashtags         String[]
+  createdAt        DateTime @default(now())
+
+  salesPages SalesPage[]
+
+  @@index([userId])
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId])
+}
+
+model TopSeller {
+  id        String   @id @default(cuid())
+  name      String
+  storeName String
+  avatar    String
+  category  String
+  gmv       Float
+  growth    Float
+  rank      Int
+  createdAt DateTime @default(now())
+}
+
+model MarketSignal {
+  id        String   @id @default(cuid())
+  title     String
+  detail    String
+  trend     Trend
+  createdAt DateTime @default(now())
+}
+
+model ActivityLog {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label      String
+  sub        String
+  value      Float
+  occurredAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model SalesPage {
+  id                String           @id @default(cuid())
+  userId            String
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productAnalysisId String?
+  productAnalysis   ProductAnalysis? @relation(fields: [productAnalysisId], references: [id], onDelete: SetNull)
+  headline          String
+  subheadline       String
+  bullets           String[]
+  price             Float
+  ctaText           String
+  createdAt         DateTime         @default(now())
+
+  @@index([userId])
+}
