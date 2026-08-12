@@ -1,70 +1,42 @@
-import { prisma } from "@/lib/db";
-import type { Product, TopSeller, MarketSignal } from "@/lib/mock-data";
+import {
+  trendingProducts,
+  topSellers,
+  marketSignals,
+  type Product,
+  type TopSeller,
+  type MarketSignal,
+} from "@/lib/mock-data";
 
-// Camada de acesso a dados: lê do Neon (via Prisma) e devolve exatamente o
-// mesmo formato que os componentes já esperavam de mock-data.ts, então nada
-// na UI precisou mudar além de trocar o import.
-
-const levelFromDb = { BAIXA: "Baixa", MEDIA: "Média", ALTA: "Alta" } as const;
-const trendFromDb = { UP: "up", DOWN: "down" } as const;
+// ---------------------------------------------------------------------------
+// ATENÇÃO — este arquivo é temporariamente um stub.
+//
+// Antes, ele lia Product/TopSeller/MarketSignal do Neon. Esses modelos saíram
+// do schema no Sprint 1: eram de outro produto (pesquisa de produto + gerador
+// de copy, de um lado só), não uma versão inicial da Creator Commerce Platform.
+// Ver DECISOES-E-PLANO.md §7.
+//
+// A decisão foi "manter a casca, jogar o miolo fora": as 13 páginas de
+// dashboard continuam renderizando — agora sobre mock — enquanto o domínio
+// novo é construído por baixo. Cada página migra para o domínio real no sprint
+// que a cobre (produtos no Sprint 2, discovery no Sprint 3, e assim por diante),
+// e some daqui.
+//
+// A assinatura async foi mantida de propósito: as páginas já fazem await, então
+// a troca para as queries reais não mexe em nenhum componente.
+// ---------------------------------------------------------------------------
 
 export async function getProducts(): Promise<Product[]> {
-  const rows = await prisma.product.findMany({ orderBy: { opportunityScore: "desc" } });
-  return rows.map((p) => ({
-    id: p.id,
-    name: p.name,
-    category: p.category,
-    image: p.image,
-    price: p.price,
-    margin: p.margin,
-    sales30d: p.salesVolume,
-    creators: p.creators,
-    competition: levelFromDb[p.competition],
-    demand: levelFromDb[p.demand],
-    opportunityScore: p.opportunityScore,
-    growth: p.growth,
-  }));
+  return [...trendingProducts].sort((a, b) => b.opportunityScore - a.opportunityScore);
 }
 
 export async function getProductById(id: string): Promise<Product | null> {
-  const p = await prisma.product.findUnique({ where: { id } });
-  if (!p) return null;
-  return {
-    id: p.id,
-    name: p.name,
-    category: p.category,
-    image: p.image,
-    price: p.price,
-    margin: p.margin,
-    sales30d: p.salesVolume,
-    creators: p.creators,
-    competition: levelFromDb[p.competition],
-    demand: levelFromDb[p.demand],
-    opportunityScore: p.opportunityScore,
-    growth: p.growth,
-  };
+  return trendingProducts.find((p) => p.id === id) ?? null;
 }
 
 export async function getTopSellers(): Promise<TopSeller[]> {
-  const rows = await prisma.topSeller.findMany({ orderBy: { rank: "asc" } });
-  return rows.map((s) => ({
-    id: s.id,
-    name: s.name,
-    storeName: s.storeName,
-    avatar: s.avatar,
-    category: s.category,
-    gmv: s.gmv,
-    growth: s.growth,
-    rank: s.rank,
-  }));
+  return [...topSellers].sort((a, b) => a.rank - b.rank);
 }
 
 export async function getMarketSignals(): Promise<MarketSignal[]> {
-  const rows = await prisma.marketSignal.findMany({ orderBy: { createdAt: "desc" } });
-  return rows.map((m) => ({
-    id: m.id,
-    title: m.title,
-    detail: m.detail,
-    trend: trendFromDb[m.trend],
-  }));
+  return marketSignals;
 }

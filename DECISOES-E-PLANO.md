@@ -191,15 +191,23 @@ salva o projeto. Mesmo princípio do `ExternalAccount` separado, aplicado ao dad
 
 ### O fato técnico que muda o desenho
 
-São **duas superfícies de OAuth diferentes** no TikTok:
+São **três superfícies de OAuth diferentes** no TikTok:
 
 | Superfície | O que dá | Do quê |
 |---|---|---|
 | **Lado seller** — TikTok Shop Partner Center | pedidos, produtos, creators | da loja daquele cliente |
 | **Lado creator** — TikTok for Developers / Login Kit | vídeos, views, engajamento, audiência | da conta do próprio creator, com consentimento dele |
+| **Affiliate Creator API** — TikTok Shop | colaborações, showcase, **conversão** | da conta do próprio creator, com consentimento dele |
 
-O histórico de GMV **global** de um creator não existe em API nenhuma. Parar de
-projetar features em cima dele.
+> **Correção de 11/08/2026:** este documento listava só as duas primeiras. A
+> terceira existe, e é justamente a que dá **dado comercial do creator sem
+> depender de loja nenhuma**. Ver `SPRINT-0-TIKTOK.md` §3 — o furo do cold start
+> é menor do que a §3.3 assumia. Disponibilidade em BR ainda a validar.
+
+O histórico de GMV **global** de um creator continua não existindo em API nenhuma
+— isso segue verdade. Mas a busca de creators do lado seller retorna GMV, e a
+Affiliate Creator API retorna a conversão do próprio creator. Existe sinal
+comercial no dia 1; o que não existe é o grafo completo do ecossistema.
 
 ### A solução: toda métrica carrega a própria procedência
 
@@ -272,22 +280,41 @@ O schema atual não é migrável para o novo modelo — é reescrita, aproveitan
 
 ## 9. O plano por sprints
 
-### Sprint 0 — Discovery técnico *(paralelo, não bloqueia o código)*
+### Sprint 0 — Discovery técnico *(paralelo, não bloqueia o código)* — **pesquisa feita, falta a conta**
 
-Tarefa do **Davi**, não do código:
+Levantamento completo em **`SPRINT-0-TIKTOK.md`**. Resumo:
 
-- Criar conta no TikTok Shop Partner Center
-- Confirmar: Brasil é mercado suportado? Quais scopes o app consegue pedir?
-- Preencher a Capability Matrix da §81
+- ✅ Brasil **é** mercado suportado (19 países, BR incluído, com página de doc própria)
+- ✅ Scopes do Login Kit levantados — e nenhum deles dá GMV ou venda
+- ⚠️ **Existem três superfícies de OAuth, não duas** — ver a correção da §6 abaixo
+- 🔴 **Antes de criar o app:** a *business region* só pode ser definida **uma vez**,
+  e existem dois portais separados (o `.us.` e o global). Errar custa conta nova
+- ⬜ Restam **6 perguntas** que só se responde logado no Partner Center
 
-### Sprint 1 — Fundação *(zero dependência externa)*
+Tarefa do **Davi**: o checklist operacional está na §5 do `SPRINT-0-TIKTOK.md`.
 
-- Schema novo: Identity (`User`, `Profile`, `CreatorProfile`, `SellerProfile`,
-  `ExternalAccount`) + Commerce core
-- Webhook do Clerk → sync de `User` no banco
-- Escolha de papel no onboarding (§5)
-- Profile switcher (creator ↔ seller na mesma conta)
-- Camada de acesso escopada por profile
+### Sprint 1 — Fundação *(zero dependência externa)* — **código escrito, falta aplicar o schema**
+
+| Item | Estado | Onde |
+|---|---|---|
+| Schema novo: Identity + Commerce core | escrito, **não aplicado no Neon** | `prisma/schema.prisma` |
+| Webhook do Clerk → sync de `User` | pronto | `src/app/api/webhooks/clerk/route.ts` |
+| Escolha de papel no onboarding (§5) | pronto | `src/app/onboarding/` |
+| Profile switcher (creator ↔ seller) | pronto | `src/components/layout/profile-switcher.tsx` |
+| Camada de acesso escopada por profile | pronta | `src/lib/scoped-db.ts` |
+| Ponte sessão Clerk → Profile | pronta | `src/lib/session.ts` |
+
+Decisões tomadas na implementação, além do que estava escrito aqui:
+
+- **Dinheiro é `Decimal`, nunca `Float`.** O schema antigo usava `Float`; para
+  registro de comissão isso vira divergência de centavos com o creator
+- **`ProfileMetric`**, série append-only de métrica com `source` + `confidence` +
+  período — a §6 deste documento virada em tabela, e não em coluna espalhada
+- **`ensureUser()`** cria o usuário no primeiro acesso se o webhook não tiver
+  chegado. Sem isso, dev sem túnel público loga no Clerk e cai num app que não
+  sabe quem ele é. O webhook passa a ser consistência, não pré-requisito
+- **A casca do dashboard segue viva sobre mock** (`src/lib/data.ts` virou stub).
+  Cada página migra para o domínio real no sprint que a cobre
 
 ### Sprint 2 — Seller manual
 
@@ -319,11 +346,23 @@ Tarefa do **Davi**, não do código:
 
 ## 10. Pendências e questões em aberto
 
-- [ ] **Bloqueia o Sprint 1:** tem dado no Neon que não pode ser perdido? O schema novo
-      substitui o atual, e `prisma db push` derruba as tabelas existentes
+- [x] ~~**Bloqueia o Sprint 1:** tem dado no Neon que não pode ser perdido?~~
+      **Resolvido (11/08/2026):** não. Contagem no Neon: `User` 0, `ProductAnalysis` 0,
+      `Favorite` 0, `ActivityLog` 0, `SalesPage` 0 — e 16 linhas de seed
+      (`Product` 6, `TopSeller` 6, `MarketSignal` 4) que `prisma db seed` regenera.
+      Zero dado de usuário. O `db push` está liberado
+- [ ] Rodar o `db push` do schema novo (o Prisma exige consentimento explícito
+      para o comando destrutivo — ver o final da seção)
 - [ ] O dashboard atual é protótipo descartável, ou já foi mostrado/prometido a alguém?
-- [ ] Sprint 0: Brasil é mercado suportado pela TikTok Shop API?
-- [ ] Sprint 0: quais scopes o app consegue pedir?
+- [x] ~~Sprint 0: Brasil é mercado suportado pela TikTok Shop API?~~
+      **Sim** — 19 mercados, BR entre eles. Mas *acesso e scopes variam por
+      mercado*, então a pergunta útil virou "o BR tem **estes** scopes"
+- [x] ~~Sprint 0: quais scopes o app consegue pedir?~~
+      Os do Login Kit estão levantados (`SPRINT-0-TIKTOK.md` §4). Os do Shop
+      dependem do Partner Center — é a pergunta 3 das 6 que restam
+- [ ] **Sprint 0, decisão irreversível:** confirmar CNPJ e target market **antes**
+      de criar o app — a *business region* não tem edição depois
+- [ ] Sprint 0: as 6 perguntas do `SPRINT-0-TIKTOK.md` §6
 - [ ] Definir a janela de atribuição em dias (sugestão inicial: 7)
 - [ ] Decidir se `prototype.md` (escopo enxuto, contraditório com o Growth OS) é
       arquivado ou deletado
@@ -336,5 +375,6 @@ Tarefa do **Davi**, não do código:
 |---|---|
 | `Creator Commerce Platform — Arquitetura Completa.md` | A visão completa, 90 seções. Fonte da verdade sobre **o que** construir |
 | `DECISOES-E-PLANO.md` | Este arquivo. Fonte da verdade sobre **como e em que ordem** |
+| `SPRINT-0-TIKTOK.md` | Discovery técnico do TikTok: Capability Matrix (§81), scopes levantados, a escolha irreversível do Partner Center e as 6 perguntas que faltam |
 | `prototype.md` | Escopo antigo e enxuto, contraditório com o Growth OS. Decisão de 11/08/2026 foi pelo Growth OS |
 | `architeture.md` | Deletado (aparece como `D` no git status) |

@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Logo } from "@/components/brand/logo";
+import { ProfileSwitcher, type ProfileSummary } from "@/components/layout/profile-switcher";
 
 const nav = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -39,7 +40,13 @@ const navSecondary = [
   { href: "/dashboard/configuracoes", label: "Configurações", icon: Settings },
 ];
 
-export function Sidebar() {
+export function Sidebar({
+  profiles = [],
+  activeProfileId = null,
+}: {
+  profiles?: ProfileSummary[];
+  activeProfileId?: string | null;
+}) {
   const pathname = usePathname();
   const { user } = useUser();
   const { signOut } = useClerk();
@@ -107,7 +114,9 @@ export function Sidebar() {
       </nav>
 
       <div className="glass-surface mt-4 rounded-2xl p-3">
-        <div className="flex items-center gap-2.5">
+        <ProfileSwitcher profiles={profiles} activeProfileId={activeProfileId} />
+
+        <div className="mt-3 flex items-center gap-2.5">
           <Avatar>
             <AvatarImage src={user?.imageUrl} alt={name} />
             <AvatarFallback className="bg-brand/15 text-brand">{initials}</AvatarFallback>

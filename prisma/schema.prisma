@@ -1,7 +1,20 @@
-// Schema do Sova AI — Postgres (Neon).
-// Depois que a DATABASE_URL estiver configurada em .env.local, rode:
-//   npx prisma db push      (cria as tabelas no Neon)
-//   npx prisma generate     (gera o client tipado)
+// Sova AI — Creator Commerce Platform
+// Schema do Sprint 1 (Identity + Commerce core), conforme DECISOES-E-PLANO.md.
+//
+// Princípios que este arquivo materializa:
+//   - Afiliação != Campanha (§76 da arquitetura)
+//   - ExternalAccount separado do Profile — a plataforma não é refém do TikTok (§12)
+//   - Toda métrica carrega procedência: source + confidence + período (§79)
+//   - Um fato, um lugar: Order não tem product_id; as linhas vivem em OrderItem
+//   - Registro financeiro é imutável: Commission congela a rate no momento da criação
+//   - Atribuição é decisão gravada, nunca calculada na leitura
+//
+// Dinheiro é Decimal, nunca Float. Float para valor financeiro acumula erro de
+// arredondamento e vira divergência de comissão com o creator.
+//
+// Aplicar:
+//   npx prisma db push
+//   npx prisma generate
 
 generator client {
   provider = "prisma-client-js"
@@ -12,137 +25,653 @@ datasource db {
   provider = "postgresql"
 }
 
-enum Plan {
-  STARTER
-  PRO
-  ELITE
+// ===========================================================================
+// Procedência dos dados
+// ===========================================================================
+
+/// De onde veio uma métrica. É o que impede a IA de inventar número (§79)
+/// e o que permite ao Matching Engine pesar sinais pela confiança disponível.
+enum MetricSource {
+  DECLARED // o usuário digitou no onboarding
+  CONNECTED // veio do OAuth da conta dele
+  PLATFORM // aconteceu dentro do nosso SaaS
+  INFERRED // calculado / estimado
 }
 
-enum Level {
-  BAIXA
-  MEDIA
-  ALTA
+/// De onde veio um registro de domínio. O primeiro adapter de ingestão é CSV;
+/// TIKTOK entra depois como segundo adapter, sem o domínio mudar uma linha.
+enum DataSource {
+  PLATFORM
+  MANUAL
+  CSV_IMPORT
+  TIKTOK
 }
 
-enum Trend {
-  UP
-  DOWN
+enum SyncStatus {
+  NEVER
+  PENDING
+  OK
+  ERROR
+}
+
+// ===========================================================================
+// Identity
+// ===========================================================================
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum ProfileType {
+  CREATOR
+  SELLER
+}
+
+enum ProfileStatus {
+  ACTIVE
+  SUSPENDED
 }
 
 model User {
-  id         String   @id // Clerk user id (ex: user_xxx)
-  email      String   @unique
-  name       String?
-  storeName  String?
-  plan       Plan     @default(STARTER)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String     @id // Clerk user id (user_xxx) — sincronizado via webhook
+  email     String     @unique
+  name      String?
+  avatarUrl String?
+  status    UserStatus @default(ACTIVE)
 
-  analyses    ProductAnalysis[]
-  favorites   Favorite[]
-  activities  ActivityLog[]
-  salesPages  SalesPage[]
+  /// Perfil selecionado no switcher. String solta (não FK) para não criar
+  /// dependência circular entre User e Profile na criação.
+  activeProfileId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  profiles  Profile[]
+  auditLogs AuditLog[]
+}
+
+/// A atuação do usuário dentro da plataforma. É a âncora de identidade:
+/// toda FK de domínio aponta para Profile, não para User — é o que mantém
+/// identidade estável quando o mesmo user tem os dois papéis.
+model Profile {
+  id          String        @id @default(cuid())
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        ProfileType
+  displayName String
+  status      ProfileStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  creatorProfile   CreatorProfile?
+  sellerProfile    SellerProfile?
+  externalAccounts ExternalAccount[]
+  metrics          ProfileMetric[]
+  events           Event[]
+  auditLogs        AuditLog[]
+
+  @@unique([userId, type]) // no máximo um perfil de cada tipo por usuário
+  @@index([userId])
+}
+
+model CreatorProfile {
+  id        String  @id @default(cuid())
+  profileId String  @unique
+  profile   Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  bio    String?  @db.Text
+  niches String[] @default([])
+
+  /// Valores de vitrine — cache do último ProfileMetric conhecido.
+  /// A verdade auditável está em ProfileMetric, com source e confidence.
+  followersCount Int?
+  engagementRate Decimal? @db.Decimal(6, 4)
+  averageViews   Int?
+  creatorScore   Decimal? @db.Decimal(5, 2)
+  audienceData   Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  affiliations     Affiliation[]
+  campaignCreators CampaignCreator[]
+  contents         Content[]
+  commissions      Commission[]
+}
+
+model SellerProfile {
+  id        String  @id @default(cuid())
+  profileId String  @unique
+  profile   Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  companyName  String?
+  document     String? // CNPJ/CPF
+  businessType String?
+  sellerScore  Decimal? @db.Decimal(5, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  products  Product[]
+  campaigns Campaign[]
+  orders    Order[]
+}
+
+/// Série append-only de métricas de um perfil, cada uma com sua procedência.
+/// É o que resolve o cold start do matching: um creator novo tem métricas
+/// DECLARED com confidence baixa; conectando o TikTok, ganha CONNECTED;
+/// vendendo na plataforma, ganha PLATFORM. O peso no score muda junto.
+model ProfileMetric {
+  id        String  @id @default(cuid())
+  profileId String
+  profile   Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  key      String // "followers", "avg_views", "gmv", "conversion_rate"
+  category String? // recorta a métrica por categoria de produto ("suplementos")
+
+  value Decimal @db.Decimal(18, 4)
+  unit  String?
+
+  source            MetricSource
+  confidence        Decimal      @db.Decimal(3, 2) // 0.00 a 1.00
+  calculationMethod String?
+  periodStart       DateTime?
+  periodEnd         DateTime?
+
+  recordedAt DateTime @default(now())
+
+  @@index([profileId, key, recordedAt])
+  @@index([profileId, category])
+}
+
+enum Provider {
+  TIKTOK
+  INSTAGRAM
+  YOUTUBE
+  OTHER
+}
+
+enum ExternalAccountStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+  ERROR
+}
+
+/// Conta externa, separada do perfil interno de propósito: o perfil existe
+/// independente do TikTok. Tokens nunca em texto puro e nunca expostos ao front.
+model ExternalAccount {
+  id        String  @id @default(cuid())
+  profileId String
+  profile   Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  provider          Provider
+  providerAccountId String
+
+  accessTokenEncrypted  String?   @db.Text
+  refreshTokenEncrypted String?   @db.Text
+  tokenExpiresAt        DateTime?
+  scopes                String[]  @default([])
+
+  status        ExternalAccountStatus @default(ACTIVE)
+  syncStatus    SyncStatus            @default(NEVER)
+  lastSyncedAt  DateTime?
+  lastSyncError String?               @db.Text
+  metadata      Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([provider, providerAccountId])
+  @@index([profileId])
+}
+
+// ===========================================================================
+// Commerce core — Product
+// ===========================================================================
+
+enum ProductStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ARCHIVED
 }
 
 model Product {
-  id               String   @id @default(cuid())
-  name             String
-  category         String
-  image            String
-  price            Float
-  margin           Float
-  salesVolume      Int
-  creators         Int      @default(0)
-  competition      Level
-  demand           Level
-  opportunityScore Int
-  growth           Float
-  createdAt        DateTime @default(now())
+  id              String        @id @default(cuid())
+  sellerProfileId String
+  sellerProfile   SellerProfile @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
 
-  favorites Favorite[]
-}
+  name          String
+  description   String?       @db.Text
+  category      String
+  price         Decimal       @db.Decimal(12, 2)
+  currency      String        @default("BRL")
+  stockQuantity Int?
+  status        ProductStatus @default(DRAFT)
+  imageUrl      String?
+  metadata      Json?
 
-model ProductAnalysis {
-  id               String   @id @default(cuid())
-  userId           String
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  inputUrl         String
-  name             String
-  category         String
-  image            String
-  priceSuggested   Float
-  marginEstimated  Float
-  salesVolume      Int
-  competition      Level
-  demand           Level
-  opportunityScore Int
-  profitForecast   Float
-  script           String   @db.Text
-  caption          String   @db.Text
-  description      String   @db.Text
-  hashtags         String[]
-  createdAt        DateTime @default(now())
+  // Procedência (§14): identificador externo, origem e data de sincronização.
+  source            DataSource @default(PLATFORM)
+  externalProductId String?
+  syncedAt          DateTime?
 
-  salesPages SalesPage[]
-
-  @@index([userId])
-}
-
-model Favorite {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  productId String
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  @@unique([userId, productId])
+  economics        ProductEconomics?
+  affiliations     Affiliation[]
+  campaignProducts CampaignProduct[]
+  orderItems       OrderItem[]
+  contents         Content[]
+
+  /// Idempotência da ingestão. Produto cadastrado à mão tem externalProductId
+  /// nulo, e no Postgres nulos não colidem entre si — então continua livre.
+  @@unique([source, externalProductId])
+  @@index([sellerProfileId])
+  @@index([category])
 }
 
-model TopSeller {
-  id        String   @id @default(cuid())
-  name      String
-  storeName String
-  avatar    String
-  category  String
-  gmv       Float
-  growth    Float
-  rank      Int
+/// Custos internos do seller. Alimenta a calculadora de comissão recomendada,
+/// que é matemática pura — entrega valor no dia 1, sem depender de API nenhuma.
+model ProductEconomics {
+  id        String  @id @default(cuid())
+  productId String  @unique
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  productCost     Decimal  @db.Decimal(12, 2)
+  shippingCost    Decimal  @default(0) @db.Decimal(12, 2)
+  platformFee     Decimal  @default(0) @db.Decimal(12, 2)
+  operationalCost Decimal  @default(0) @db.Decimal(12, 2)
+  minimumMargin   Decimal? @db.Decimal(5, 4) // fração: 0.15 = 15%
+  targetMargin    Decimal? @db.Decimal(5, 4)
+
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
-model MarketSignal {
-  id        String   @id @default(cuid())
-  title     String
-  detail    String
-  trend     Trend
+// ===========================================================================
+// Commerce core — Affiliation e Campaign (entidades distintas, §76)
+// ===========================================================================
+
+enum AffiliationStatus {
+  PENDING
+  ACTIVE
+  PAUSED
+  ENDED
+  REJECTED
+}
+
+/// "Creator está habilitado a promover o produto X."
+/// Existe com ou sem campanha — é o vínculo que sobrevive à descoberta orgânica.
+model Affiliation {
+  id               String         @id @default(cuid())
+  creatorProfileId String
+  creatorProfile   CreatorProfile @relation(fields: [creatorProfileId], references: [id], onDelete: Cascade)
+  productId        String
+  product          Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  commissionRate Decimal           @db.Decimal(5, 4) // fração: 0.20 = 20%
+  status         AffiliationStatus @default(PENDING)
+  startedAt      DateTime?
+  endedAt        DateTime?
+
+  source                DataSource @default(PLATFORM)
+  externalAffiliationId String?
+  syncedAt              DateTime?
+
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  attributedOrders Order[]
+  commissions      Commission[]
+
+  @@unique([creatorProfileId, productId]) // o vínculo é um só; o status é que muda
+  @@index([productId, status])
+  @@index([creatorProfileId, status])
 }
 
-model ActivityLog {
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ENDED
+}
+
+/// "Seller organizou uma iniciativa comercial." Pode existir ou não.
+model Campaign {
+  id              String        @id @default(cuid())
+  sellerProfileId String
+  sellerProfile   SellerProfile @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
+
+  name           String
+  description    String?        @db.Text
+  status         CampaignStatus @default(DRAFT)
+  startAt        DateTime?
+  endAt          DateTime?
+  commissionRate Decimal?       @db.Decimal(5, 4)
+  targetSales    Int?
+  budget         Decimal?       @db.Decimal(12, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  products    CampaignProduct[]
+  creators    CampaignCreator[]
+  orders      Order[]
+  contents    Content[]
+  commissions Commission[]
+
+  @@index([sellerProfileId, status])
+}
+
+model CampaignProduct {
   id         String   @id @default(cuid())
-  userId     String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  label      String
-  sub        String
-  value      Float
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  commissionRate Decimal? @db.Decimal(5, 4) // sobrepõe a taxa da campanha
+
+  createdAt DateTime @default(now())
+
+  @@unique([campaignId, productId])
+}
+
+enum CampaignCreatorStatus {
+  INVITED
+  ACCEPTED
+  REJECTED
+  REMOVED
+}
+
+model CampaignCreator {
+  id               String         @id @default(cuid())
+  campaignId       String
+  campaign         Campaign       @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  creatorProfileId String
+  creatorProfile   CreatorProfile @relation(fields: [creatorProfileId], references: [id], onDelete: Cascade)
+
+  status     CampaignCreatorStatus @default(INVITED)
+  invitedAt  DateTime              @default(now())
+  acceptedAt DateTime?
+  rejectedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@unique([campaignId, creatorProfileId])
+  @@index([creatorProfileId, status])
+}
+
+// ===========================================================================
+// Commerce core — Content
+// ===========================================================================
+
+enum ContentType {
+  VIDEO
+  LIVE
+  IMAGE
+  OTHER
+}
+
+/// Estado atual do conteúdo. As métricas aqui são **cache do último valor**,
+/// para a listagem não precisar de join. A verdade histórica é ContentPerformance.
+model Content {
+  id               String         @id @default(cuid())
+  creatorProfileId String
+  creatorProfile   CreatorProfile @relation(fields: [creatorProfileId], references: [id], onDelete: Cascade)
+  productId        String?
+  product          Product?       @relation(fields: [productId], references: [id], onDelete: SetNull)
+  campaignId       String?
+  campaign         Campaign?      @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+
+  contentType ContentType @default(VIDEO)
+  title       String?
+  url         String?
+  publishedAt DateTime?
+  metadata    Json?
+
+  source            DataSource @default(PLATFORM)
+  externalContentId String?
+  syncedAt          DateTime?
+
+  // --- cache do último ContentPerformance (nunca escrever à mão) ---
+  views             Int       @default(0)
+  likes             Int       @default(0)
+  comments          Int       @default(0)
+  shares            Int       @default(0)
+  clicks            Int       @default(0)
+  orders            Int       @default(0)
+  gmv               Decimal   @default(0) @db.Decimal(12, 2)
+  commission        Decimal   @default(0) @db.Decimal(12, 2)
+  lastPerformanceAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  performances ContentPerformance[]
+
+  @@unique([source, externalContentId])
+  @@index([creatorProfileId, publishedAt])
+  @@index([productId])
+}
+
+/// Série temporal append-only. Nunca sofre UPDATE — cada leitura vira uma linha
+/// nova. É o que permite responder "como esse vídeo evoluiu", não só "como está".
+model ContentPerformance {
+  id        String  @id @default(cuid())
+  contentId String
+  content   Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
+
+  views          Int      @default(0)
+  clicks         Int      @default(0)
+  orders         Int      @default(0)
+  conversionRate Decimal? @db.Decimal(6, 4)
+  gmv            Decimal  @default(0) @db.Decimal(12, 2)
+  commission     Decimal  @default(0) @db.Decimal(12, 2)
+  engagementRate Decimal? @db.Decimal(6, 4)
+  roi            Decimal? @db.Decimal(8, 4)
+
+  source     MetricSource @default(CONNECTED)
+  recordedAt DateTime     @default(now())
+
+  @@index([contentId, recordedAt])
+}
+
+// ===========================================================================
+// Commerce core — Order e Commission
+// ===========================================================================
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  RETURNED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  PARTIALLY_REFUNDED
+  REFUNDED
+  FAILED
+}
+
+enum FulfillmentStatus {
+  PENDING
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  RETURNED
+}
+
+/// A transação. Note que **não existe productId aqui** — as linhas do pedido
+/// vivem em OrderItem, e ponto. Duas fontes de verdade para a mesma coisa é
+/// como um pedido de 3 itens vira relatório de 1.
+model Order {
+  id              String        @id @default(cuid())
+  sellerProfileId String
+  sellerProfile   SellerProfile @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
+  campaignId      String?
+  campaign        Campaign?     @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+
+  orderStatus       OrderStatus       @default(PENDING)
+  paymentStatus     PaymentStatus     @default(PENDING)
+  fulfillmentStatus FulfillmentStatus @default(PENDING)
+
+  totalAmount       Decimal @db.Decimal(12, 2)
+  platformFee       Decimal @default(0) @db.Decimal(12, 2)
+  creatorCommission Decimal @default(0) @db.Decimal(12, 2)
+  refundAmount      Decimal @default(0) @db.Decimal(12, 2)
+  netRevenue        Decimal @default(0) @db.Decimal(12, 2)
+  estimatedProfit   Decimal @default(0) @db.Decimal(12, 2)
+  currency          String  @default("BRL")
+
+  // --- Atribuição: decisão de negócio GRAVADA, nunca calculada na leitura ---
+  // Se fosse calculada, o número mudaria toda vez que alguém abrisse a tela.
+  // Nulo é resposta legítima: venda orgânica, sem creator.
+  attributedAffiliationId String?
+  attributedAffiliation   Affiliation? @relation(fields: [attributedAffiliationId], references: [id], onDelete: SetNull)
+  attributedAt            DateTime?
+  attributionWindowDays   Int?
+
+  // Procedência + idempotência (§62): webhook duplicado é regra, não exceção.
+  source          DataSource @default(PLATFORM)
+  externalOrderId String?
+  syncedAt        DateTime?
+
+  placedAt  DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items       OrderItem[]
+  commissions Commission[]
+
+  @@unique([source, externalOrderId])
+  @@index([sellerProfileId, placedAt])
+  @@index([attributedAffiliationId])
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  quantity    Int     @default(1)
+  unitPrice   Decimal @db.Decimal(12, 2)
+  discount    Decimal @default(0) @db.Decimal(12, 2)
+  totalAmount Decimal @db.Decimal(12, 2)
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+enum CommissionStatus {
+  ESTIMATED
+  PENDING
+  APPROVED
+  PAID
+  CANCELLED
+  ADJUSTED
+}
+
+/// Registro financeiro — imutável por natureza.
+/// `rate` é CONGELADA na criação: se o seller mudar a comissão amanhã, a
+/// comissão de ontem não muda junto. E `affiliationId` diz qual vínculo gerou
+/// a venda — sem isso não dá para auditar de onde veio o dinheiro.
+model Commission {
+  id               String         @id @default(cuid())
+  creatorProfileId String
+  creatorProfile   CreatorProfile @relation(fields: [creatorProfileId], references: [id], onDelete: Cascade)
+  orderId          String
+  order            Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  affiliationId    String
+  affiliation      Affiliation    @relation(fields: [affiliationId], references: [id], onDelete: Restrict)
+  campaignId       String?
+  campaign         Campaign?      @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+
+  rate            Decimal          @db.Decimal(5, 4)
+  estimatedAmount Decimal          @db.Decimal(12, 2)
+  finalAmount     Decimal?         @db.Decimal(12, 2)
+  status          CommissionStatus @default(ESTIMATED)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([orderId, creatorProfileId])
+  @@index([creatorProfileId, status])
+}
+
+// ===========================================================================
+// Plataforma — eventos, auditoria e fila
+// ===========================================================================
+
+/// Camada de eventos para analytics não depender de query gigante em tabela
+/// transacional. `eventType` é String, não enum, porque catálogo de evento
+/// cresce toda semana e não deveria custar migration.
+model Event {
+  id         String   @id @default(cuid())
+  profileId  String?
+  profile    Profile? @relation(fields: [profileId], references: [id], onDelete: SetNull)
+  eventType  String
+  entityType String?
+  entityId   String?
+  metadata   Json?
   occurredAt DateTime @default(now())
 
-  @@index([userId])
+  @@index([profileId, occurredAt])
+  @@index([eventType, occurredAt])
 }
 
-model SalesPage {
-  id                String           @id @default(cuid())
-  userId            String
-  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  productAnalysisId String?
-  productAnalysis   ProductAnalysis? @relation(fields: [productAnalysisId], references: [id], onDelete: SetNull)
-  headline          String
-  subheadline       String
-  bullets           String[]
-  price             Float
-  ctaText           String
-  createdAt         DateTime         @default(now())
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  profileId  String?
+  profile    Profile? @relation(fields: [profileId], references: [id], onDelete: SetNull)
+  action     String
+  entityType String?
+  entityId   String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
 
-  @@index([userId])
+  @@index([userId, createdAt])
+  @@index([entityType, entityId])
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  DONE
+  FAILED
+}
+
+/// Fila no próprio Postgres, consumida com SELECT ... FOR UPDATE SKIP LOCKED
+/// e disparada por Vercel Cron. Um serviço a menos para operar enquanto o
+/// volume não justifica Redis (§83: monolito modular primeiro).
+model Job {
+  id          String    @id @default(cuid())
+  type        String
+  payload     Json?
+  status      JobStatus @default(PENDING)
+  runAt       DateTime  @default(now())
+  attempts    Int       @default(0)
+  maxAttempts Int       @default(3)
+  lastError   String?   @db.Text
+  lockedAt    DateTime?
+  lockedBy    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, runAt])
 }
