@@ -45,7 +45,7 @@ export function ProdutosClient({ products }: { products: Product[] }) {
                 onClick={() => setCategory(c)}
                 className={
                   c === category
-                    ? "rounded-full bg-brand px-4 py-2 text-xs font-medium text-brand-foreground"
+                    ? "rounded-full bg-selected px-4 py-2 text-xs font-medium text-selected-foreground"
                     : "rounded-full bg-surface-2 px-4 py-2 text-xs font-medium text-ink-secondary hover:bg-surface-3"
                 }
               >

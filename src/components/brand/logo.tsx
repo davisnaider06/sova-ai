@@ -22,7 +22,7 @@ export function Logo({
       />
       {showWordmark && (
         <span className="text-base font-semibold tracking-tight text-foreground">
-          Sova <span className="text-brand">AI</span>
+          Sova <span className="text-brand-ink">AI</span>
         </span>
       )}
     </span>

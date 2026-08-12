@@ -17,7 +17,7 @@ export default function InfluenciadoresPage() {
             <CardContent className="p-5">
               <div className="flex items-center gap-3">
                 <Avatar className="h-12 w-12">
-                  <AvatarFallback className="bg-brand/15 text-base text-brand">{inf.avatar}</AvatarFallback>
+                  <AvatarFallback className="bg-selected/10 text-base text-ink-primary">{inf.avatar}</AvatarFallback>
                 </Avatar>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold text-ink-primary">{inf.name}</p>

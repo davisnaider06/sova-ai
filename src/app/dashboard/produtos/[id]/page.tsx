@@ -54,7 +54,7 @@ export default async function ProdutoDetalhePage({ params }: { params: Promise<{
             </CardContent>
           </Card>
 
-          <div className="flex flex-col justify-center rounded-2xl bg-brand p-6 text-brand-foreground">
+          <div className="flex flex-col justify-center rounded-2xl bg-selected p-6 text-selected-foreground">
             <p className="text-xs font-medium opacity-70">Opportunity Score</p>
             <p className="text-4xl font-semibold">{product.opportunityScore}/100</p>
           </div>

@@ -56,7 +56,7 @@ export default function PaginaVendasPage() {
 
         {loading && (
           <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-border-hairline bg-surface-1 py-20 text-center">
-            <Sparkles className="h-6 w-6 animate-pulse text-brand" />
+            <Sparkles className="h-6 w-6 animate-pulse text-brand-ink" />
             <p className="text-sm text-ink-secondary">Montando oferta, headline, bullets e prova social...</p>
           </div>
         )}
@@ -86,7 +86,7 @@ export default function PaginaVendasPage() {
 
                 <div className="flex items-center gap-1">
                   {Array.from({ length: 5 }).map((_, i) => (
-                    <Star key={i} className="h-4 w-4 fill-brand text-brand" />
+                    <Star key={i} className="h-4 w-4 fill-brand-ink text-brand-ink" />
                   ))}
                   <span className="ml-1 text-xs text-ink-muted">+2.400 avaliações</span>
                 </div>
@@ -94,8 +94,8 @@ export default function PaginaVendasPage() {
                 <ul className="flex flex-col gap-2 text-left">
                   {page.bullets.map((b) => (
                     <li key={b} className="flex items-center gap-2 text-sm text-ink-secondary">
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand/15">
-                        <Check className="h-3 w-3 text-brand" />
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-selected/10">
+                        <Check className="h-3 w-3 text-brand-ink" />
                       </span>
                       {b}
                     </li>
@@ -113,7 +113,7 @@ export default function PaginaVendasPage() {
                 </Button>
 
                 <p className="flex items-center gap-1.5 text-xs text-ink-muted">
-                  <ShieldCheck className="h-3.5 w-3.5 text-brand" /> Compra 100% segura e garantida
+                  <ShieldCheck className="h-3.5 w-3.5 text-brand-ink" /> Compra 100% segura e garantida
                 </p>
 
                 <div className="grid w-full gap-3 border-t border-border-hairline pt-6 sm:grid-cols-3">
@@ -121,7 +121,7 @@ export default function PaginaVendasPage() {
                     <div key={t.name} className="rounded-xl bg-surface-2 p-3 text-left">
                       <div className="flex items-center gap-1">
                         {Array.from({ length: 5 }).map((_, i) => (
-                          <Star key={i} className="h-3 w-3 fill-brand text-brand" />
+                          <Star key={i} className="h-3 w-3 fill-brand-ink text-brand-ink" />
                         ))}
                       </div>
                       <p className="mt-1.5 text-xs text-ink-secondary">&quot;{t.text}&quot;</p>
@@ -176,7 +176,7 @@ function CopyBlock({ label, text }: { label: string; text: string }) {
             setCopied(true);
             setTimeout(() => setCopied(false), 1500);
           }}
-          className="flex items-center gap-1 text-xs text-brand hover:underline"
+          className="flex items-center gap-1 text-xs text-brand-ink hover:underline"
         >
           <Copy className="h-3 w-3" /> {copied ? "Copiado" : "Copiar"}
         </button>

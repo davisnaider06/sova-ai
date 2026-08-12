@@ -22,7 +22,7 @@ export default function ModeloViralPage() {
                 </div>
                 <p className="mt-2 text-base font-medium text-ink-primary">&quot;{v.hook}&quot;</p>
                 <div className="mt-3 flex items-center gap-3">
-                  <div className="flex items-center gap-1 text-xs font-medium text-brand">
+                  <div className="flex items-center gap-1 text-xs font-medium text-brand-ink">
                     <Flame className="h-3.5 w-3.5" /> {v.virality}% viralidade
                   </div>
                   <Progress value={v.virality} className="h-1.5 max-w-[160px]" />

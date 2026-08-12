@@ -12,5 +12,5 @@ const icons: Record<string, LucideIcon> = {
 
 export function ProductIcon({ name, className }: { name: string; className?: string }) {
   const Icon = icons[name] ?? Sparkle;
-  return <Icon className={cn("text-brand", className)} strokeWidth={1.75} />;
+  return <Icon className={cn("text-brand-ink", className)} strokeWidth={1.75} />;
 }

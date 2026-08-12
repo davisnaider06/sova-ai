@@ -78,7 +78,7 @@ export function DashboardClient({
         <Card>
           <CardHeader className="flex-row items-center justify-between">
             <CardTitle>Produtos em alta</CardTitle>
-            <Link href="/dashboard/produtos" className="text-xs font-medium text-brand hover:underline">
+            <Link href="/dashboard/produtos" className="text-xs font-medium text-brand-ink hover:underline">
               Ver todos
             </Link>
           </CardHeader>

@@ -136,6 +136,10 @@ Estes são os únicos que consegui verificar em documentação aberta:
 
 ## 5. O que só você pode fazer
 
+> **O passo a passo clicável está em `SPRINT-0-ROTEIRO.md`** (12/08/2026), com
+> os campos exatos a preencher, o que ter em mãos antes de começar, e um bloco
+> de respostas pronto pra preencher. Abaixo fica o resumo.
+
 Ordem importa — cada passo destrava o próximo.
 
 - [ ] **1. Decidir o CNPJ e o mercado-alvo do app.** É a escolha irreversível da
@@ -143,7 +147,9 @@ Ordem importa — cada passo destrava o próximo.
       (`partner.tiktokshop.com`, *não* o `.us.`)
 - [ ] **2. Criar a conta no Partner Center** com esse CNPJ
 - [ ] **3. Registrar o app** como *Affiliate app developer* (é o tipo de app que
-      destrava as APIs de afiliado — não o de seller genérico)
+      destrava as APIs de afiliado — não o de seller genérico). Na criação há
+      ainda a escolha **Custom App × Public App** — comece em *Custom*, que
+      converte pra *Public* depois e não entra em fila de review agora
 - [ ] **4. Criar uma Development Shop.** O Partner Center oferece lojas de teste;
       é como validar o fluxo sem depender de um cliente real
 - [ ] **5. Responder as 6 perguntas da seção 6 abaixo** e voltar aqui para
@@ -151,10 +157,17 @@ Ordem importa — cada passo destrava o próximo.
 
 ---
 
-## 6. As 6 perguntas a responder logado no Partner Center
+## 6. As perguntas a responder logado no Partner Center
 
 São estas que fecham o Sprint 0. Todas as outras já estão respondidas acima.
 
+0. **(nova, 12/08/2026) O Brasil está no programa de afiliados?**
+   Fontes públicas listam o *Affiliate Partner program* (TAP) como disponível em
+   Indonésia, Malásia, Filipinas, Tailândia, Vietnã e Reino Unido — **sem o
+   Brasil**. Pode ser que o programa de parceiros seja outra coisa que as APIs
+   de afiliado. Mas se andarem juntos, isso derruba a premissa do Sprint 4 e
+   promove o adapter CSV (Sprint 5) a caminho principal. É a primeira coisa a
+   checar depois de criar o app.
 1. **A Affiliate Seller API está disponível para o mercado BR?**
    Especificamente a busca de creators — é o que alimenta o Seller Creator
    Discovery (§44 da arquitetura).

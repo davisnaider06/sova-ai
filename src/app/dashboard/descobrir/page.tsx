@@ -73,7 +73,7 @@ export default function DescobrirPage() {
 
         {loading && (
           <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-border-hairline bg-surface-1 py-20 text-center">
-            <Sparkles className="h-6 w-6 animate-pulse text-brand" />
+            <Sparkles className="h-6 w-6 animate-pulse text-brand-ink" />
             <p className="text-sm text-ink-secondary">
               Analisando volume de vendas, concorrência, vídeos virais e gerando roteiro...
             </p>
@@ -109,7 +109,7 @@ export default function DescobrirPage() {
                 </CardContent>
               </Card>
 
-              <div className="flex flex-col justify-center rounded-2xl bg-brand p-5 text-brand-foreground">
+              <div className="flex flex-col justify-center rounded-2xl bg-selected p-5 text-selected-foreground">
                 <p className="text-xs font-medium opacity-70">Opportunity Score</p>
                 <p className="text-4xl font-semibold">{result.opportunityScore}/100</p>
               </div>
@@ -126,7 +126,7 @@ export default function DescobrirPage() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-brand" /> Roteiro sugerido
+                    <FileText className="h-4 w-4 text-brand-ink" /> Roteiro sugerido
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -162,7 +162,7 @@ export default function DescobrirPage() {
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Hash className="h-4 w-4 text-brand" /> Hashtags
+                      <Hash className="h-4 w-4 text-brand-ink" /> Hashtags
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="flex flex-wrap gap-2">
@@ -189,7 +189,7 @@ export default function DescobrirPage() {
                       <span className="text-xs text-ink-muted">{v.duration}</span>
                     </div>
                     <p className="mt-3 text-sm text-ink-primary">&quot;{v.hook}&quot;</p>
-                    <div className="mt-3 flex items-center gap-1 text-xs font-medium text-brand">
+                    <div className="mt-3 flex items-center gap-1 text-xs font-medium text-brand-ink">
                       <Flame className="h-3 w-3" /> {v.virality}% viralidade
                     </div>
                   </div>
@@ -215,7 +215,7 @@ export default function DescobrirPage() {
 function MetricTile({ icon: Icon, label, value }: { icon: typeof TrendingUp; label: string; value: string }) {
   return (
     <Card className="p-4">
-      <Icon className="h-4 w-4 text-brand" />
+      <Icon className="h-4 w-4 text-brand-ink" />
       <p className="mt-2 text-lg font-semibold text-ink-primary">{value}</p>
       <p className="text-xs text-ink-muted">{label}</p>
     </Card>

@@ -22,7 +22,7 @@ export default function InfluenciadoresIaPage() {
             <Card key={ai.id}>
               <CardContent className="p-5">
                 <div className="flex items-center justify-between">
-                  <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand/15 text-xl font-semibold text-brand">
+                  <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-selected/10 text-xl font-semibold text-ink-primary">
                     {ai.avatar}
                   </span>
                   <Badge variant={statusVariant[ai.status]}>{ai.status}</Badge>
@@ -41,7 +41,7 @@ export default function InfluenciadoresIaPage() {
             </Card>
           ))}
 
-          <button className="flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-border-strong p-8 text-ink-muted transition-colors hover:border-brand hover:text-brand">
+          <button className="flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-border-strong p-8 text-ink-muted transition-colors hover:border-brand-ink hover:text-brand-ink">
             <Bot className="h-8 w-8" />
             <span className="text-sm font-medium">Criar novo avatar IA</span>
           </button>

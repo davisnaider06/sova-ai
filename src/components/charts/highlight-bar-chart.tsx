@@ -28,7 +28,7 @@ export function HighlightBarChart({ data }: { data: Point[] }) {
         <Tooltip content={<ChartTooltip />} cursor={{ fill: "var(--surface-2)" }} />
         <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={28}>
           {data.map((d, i) => (
-            <Cell key={i} fill={d.highlight ? "var(--brand)" : "var(--surface-3)"} />
+            <Cell key={i} fill={d.highlight ? "var(--chart-brand)" : "var(--surface-3)"} />
           ))}
         </Bar>
       </BarChart>

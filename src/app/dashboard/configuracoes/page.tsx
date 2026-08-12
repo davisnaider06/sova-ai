@@ -91,7 +91,7 @@ export default function ConfiguracoesPage() {
               {plans.map((plan) => {
                 const active = plan.name === "Pro";
                 return (
-                  <Card key={plan.id} className={active ? "border-brand p-5 shadow-[0_0_0_1px_var(--brand)]" : "p-5"}>
+                  <Card key={plan.id} className={active ? "border-brand-ink p-5 shadow-[0_0_0_1px_var(--brand)]" : "p-5"}>
                     {active && <Badge className="mb-3 w-fit">Plano atual</Badge>}
                     <h3 className="text-lg font-semibold">{plan.name}</h3>
                     <p className="mt-1 text-sm text-ink-muted">{plan.tagline}</p>
@@ -102,7 +102,7 @@ export default function ConfiguracoesPage() {
                     <ul className="mt-4 space-y-2">
                       {plan.features.slice(0, 3).map((f) => (
                         <li key={f} className="flex items-start gap-2 text-xs text-ink-secondary">
-                          <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand" /> {f}
+                          <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-ink" /> {f}
                         </li>
                       ))}
                     </ul>

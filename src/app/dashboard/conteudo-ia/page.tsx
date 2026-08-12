@@ -56,7 +56,7 @@ export default function ConteudoIaPage() {
             ) : (
               <div
                 onClick={() => inputRef.current?.click()}
-                className="flex h-40 w-40 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-border-strong text-ink-muted transition-colors hover:border-brand hover:text-brand"
+                className="flex h-40 w-40 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-border-strong text-ink-muted transition-colors hover:border-brand-ink hover:text-brand-ink"
               >
                 <ImagePlus className="h-8 w-8" />
                 <span className="text-xs">Enviar foto</span>
@@ -75,7 +75,7 @@ export default function ConteudoIaPage() {
 
         {loading && (
           <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-border-hairline bg-surface-1 py-16 text-center">
-            <Sparkles className="h-6 w-6 animate-pulse text-brand" />
+            <Sparkles className="h-6 w-6 animate-pulse text-brand-ink" />
             <p className="text-sm text-ink-secondary">Criando roteiro, cenas, legenda e narração...</p>
           </div>
         )}
@@ -85,7 +85,7 @@ export default function ConteudoIaPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Clapperboard className="h-4 w-4 text-brand" /> Roteiro por cenas
+                  <Clapperboard className="h-4 w-4 text-brand-ink" /> Roteiro por cenas
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -102,12 +102,12 @@ export default function ConteudoIaPage() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <MessageSquareQuote className="h-4 w-4 text-brand" /> Legenda & CTA
+                    <MessageSquareQuote className="h-4 w-4 text-brand-ink" /> Legenda & CTA
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <p className="rounded-xl bg-surface-2 p-3 text-sm text-ink-secondary">{caption}</p>
-                  <p className="rounded-xl bg-brand/10 p-3 text-sm font-medium text-brand">{cta}</p>
+                  <p className="rounded-xl bg-selected/[0.06] p-3 text-sm font-medium text-ink-primary">{cta}</p>
                   <Button
                     variant="outline"
                     size="sm"
@@ -126,7 +126,7 @@ export default function ConteudoIaPage() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Mic className="h-4 w-4 text-brand" /> Narração
+                    <Mic className="h-4 w-4 text-brand-ink" /> Narração
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -137,7 +137,7 @@ export default function ConteudoIaPage() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Hash className="h-4 w-4 text-brand" /> Hashtags
+                    <Hash className="h-4 w-4 text-brand-ink" /> Hashtags
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="flex flex-wrap gap-2">

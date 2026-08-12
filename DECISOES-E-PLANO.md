@@ -289,9 +289,13 @@ Levantamento completo em **`SPRINT-0-TIKTOK.md`**. Resumo:
 - ⚠️ **Existem três superfícies de OAuth, não duas** — ver a correção da §6 abaixo
 - 🔴 **Antes de criar o app:** a *business region* só pode ser definida **uma vez**,
   e existem dois portais separados (o `.us.` e o global). Errar custa conta nova
-- ⬜ Restam **6 perguntas** que só se responde logado no Partner Center
+- ⬜ Restam **7 perguntas** que só se responde logado no Partner Center
+- 🔴 **Sinal de risco (12/08/2026):** o *Affiliate Partner program* aparece em
+  fontes públicas como disponível em ID, MY, PH, TH, VN e UK — **sem o BR**.
+  Se isso valer também para as APIs de afiliado, o Sprint 4 perde a fonte e o
+  Sprint 5 (adapter CSV) vira o caminho principal. É a pergunta 0 do roteiro
 
-Tarefa do **Davi**: o checklist operacional está na §5 do `SPRINT-0-TIKTOK.md`.
+Tarefa do **Davi**: o passo a passo clicável está em **`SPRINT-0-ROTEIRO.md`**.
 
 ### Sprint 1 — Fundação *(zero dependência externa)* — **código escrito, falta aplicar o schema**
 
@@ -375,7 +379,9 @@ Decisões tomadas na implementação, além do que estava escrito aqui:
 |---|---|
 | `Creator Commerce Platform — Arquitetura Completa.md` | A visão completa, 90 seções. Fonte da verdade sobre **o que** construir |
 | `DECISOES-E-PLANO.md` | Este arquivo. Fonte da verdade sobre **como e em que ordem** |
-| `SPRINT-0-TIKTOK.md` | Discovery técnico do TikTok: Capability Matrix (§81), scopes levantados, a escolha irreversível do Partner Center e as 6 perguntas que faltam |
+| `SPRINT-0-TIKTOK.md` | Discovery técnico do TikTok: Capability Matrix (§81), scopes levantados, a escolha irreversível do Partner Center e as perguntas que faltam. **O que sabemos** |
+| `SPRINT-0-ROTEIRO.md` | Passo a passo operacional pra fechar o Sprint 0: o que ter em mãos, os campos exatos do Partner Center, e o bloco de respostas. **O que fazer** |
+| `POSICIONAMENTO.md` | Descritor, frase de posicionamento e as 4+4 funcionalidades por lado. Fonte da verdade pra **texto que vai pra fora** — banner, landing, pitch |
 | `prototype.md` | Escopo antigo e enxuto, contraditório com o Growth OS. Decisão de 11/08/2026 foi pelo Growth OS |
 | `architeture.md` | Deletado (aparece como `D` no git status) |
 

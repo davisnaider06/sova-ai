@@ -6,7 +6,7 @@ import { ProductIcon } from "@/components/dashboard/product-icon";
 
 export function OpportunityCard({ product }: { product: Product }) {
   return (
-    <div className="flex h-full flex-col justify-between rounded-2xl bg-brand p-5 text-brand-foreground">
+    <div className="flex h-full flex-col justify-between rounded-2xl bg-selected p-5 text-selected-foreground">
       <div className="flex items-start justify-between">
         <div>
           <p className="text-xs font-medium opacity-70">Opportunity Score</p>
@@ -14,14 +14,14 @@ export function OpportunityCard({ product }: { product: Product }) {
         </div>
         <Link
           href={`/dashboard/produtos/${product.id}`}
-          className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-foreground/10 transition-colors hover:bg-brand-foreground/20"
+          className="flex h-8 w-8 items-center justify-center rounded-full bg-selected-foreground/10 transition-colors hover:bg-selected-foreground/20"
         >
           <ArrowUpRight className="h-4 w-4" />
         </Link>
       </div>
 
       <div>
-        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-foreground/10">
+        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-selected-foreground/10">
           <ProductIcon name={product.image} className="h-4 w-4 text-brand-foreground" />
         </span>
         <p className="mt-2 text-base font-semibold leading-snug">{product.name}</p>

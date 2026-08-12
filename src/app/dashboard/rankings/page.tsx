@@ -33,7 +33,7 @@ export default async function RankingsPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Trophy className="h-4 w-4 text-brand" /> Produtos por GMV estimado
+                  <Trophy className="h-4 w-4 text-brand-ink" /> Produtos por GMV estimado
                 </CardTitle>
               </CardHeader>
               <CardContent className="overflow-x-auto">
@@ -95,7 +95,7 @@ export default async function RankingsPage() {
                     <CardContent className="flex items-center gap-4 p-5">
                       <div className="relative">
                         <Avatar className="h-12 w-12">
-                          <AvatarFallback className="bg-brand/15 text-base text-brand">{s.avatar}</AvatarFallback>
+                          <AvatarFallback className="bg-selected/10 text-base text-ink-primary">{s.avatar}</AvatarFallback>
                         </Avatar>
                         {s.rank <= 3 && (
                           <Crown className={cn("absolute -right-1 -top-1 h-4 w-4", medalColor[s.rank - 1])} />

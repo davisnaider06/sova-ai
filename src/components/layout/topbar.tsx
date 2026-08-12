@@ -72,7 +72,7 @@ export function Topbar({ title, subtitle }: { title: string; subtitle?: string }
             )}
           >
             <Bell className="h-4 w-4" />
-            <span className="absolute right-2.5 top-2.5 h-1.5 w-1.5 rounded-full bg-brand" />
+            <span className="absolute right-2.5 top-2.5 h-1.5 w-1.5 rounded-full bg-chart-brand" />
           </button>
           <ThemeToggle className={cn("shrink-0 transition-all", scrolled ? "h-9 w-9" : "h-10 w-10")} />
           <UserButton
