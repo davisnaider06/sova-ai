@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { ImagePlus, Sparkles, Clapperboard, Mic, Hash, MessageSquareQuote, Copy, Check } from "lucide-react";
 import { Topbar } from "@/components/layout/topbar";
+import { PrototypeNotice } from "@/components/ui/prototype-notice";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -47,6 +48,7 @@ export default function ConteudoIaPage() {
       <Topbar title="Conteúdo IA" subtitle="Envie a foto do produto e receba um vídeo pronto para gravar" />
 
       <div className="flex flex-col gap-6 p-6">
+        <PrototypeNotice what="A geração de roteiro ainda não está ligada a um modelo de IA." />
         <Card>
           <CardContent className="flex flex-col items-center gap-4 p-8 text-center">
             <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />

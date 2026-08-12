@@ -316,31 +316,73 @@ Decisões tomadas na implementação, além do que estava escrito aqui:
 - **A casca do dashboard segue viva sobre mock** (`src/lib/data.ts` virou stub).
   Cada página migra para o domínio real no sprint que a cobre
 
-### Sprint 2 — Seller manual
+### Sprint 2 — Seller manual — **entregue (12/08/2026)**
 
-- CRUD de `Product`
-- `ProductEconomics`
-- **Calculadora de comissão recomendada** (§43) — matemática pura, já é valor
-  entregue no dia 1
+| Item | Onde |
+|---|---|
+| CRUD de `Product` + arquivamento | `src/app/dashboard/produtos/` |
+| `ProductEconomics` (custos + margens) | `produtos/[id]/economics-form.tsx` |
+| Calculadora de comissão recomendada (§43) | `src/lib/pricing.ts` + `components/produtos/commission-calculator.tsx` |
+| CRUD de `Campaign` + vínculo de produtos | `src/app/dashboard/campanhas/` |
+| Inbox de `Affiliation` (aprovar/recusar/pausar) | `src/app/dashboard/afiliacoes/` |
 
-### Sprint 3 — Creator
+A calculadora devolve a **escada inteira** de cenários, não um número: ponto de
+equilíbrio, teto da margem mínima e lucro em cada faixa. É o §23 aplicado a preço.
 
-- `CreatorProfile` completo
-- Product discovery sobre produtos reais
-- Fluxo de `Affiliation` (pedir → aceitar)
+### Sprint 3 — Creator — **entregue (12/08/2026)**
 
-### Sprint 4 — Matching v1
+| Item | Onde |
+|---|---|
+| `CreatorProfile` (bio, nichos, audiência) | `src/app/dashboard/configuracoes/` |
+| Descoberta de produtos pontuada | `src/app/dashboard/descobrir/` |
+| Fluxo de `Affiliation` (pedir → aprovar) | `descobrir/actions.ts` + `minhas-afiliacoes/` |
+| Registro de conteúdo (alimenta a atribuição) | `src/app/dashboard/conteudo/` |
+| Extrato de comissões | `src/app/dashboard/comissoes/` |
 
-- Baseado em regras
-- Breakdown explicável (§23)
-- `confidence` visível na UI
+**Nichos saem da mesma taxonomia das categorias de produto** (`src/lib/categories.ts`).
+É o que permite o matching comparar nicho com categoria diretamente, em vez de
+adivinhar que "suplemento" e "Saúde e suplementos" são a mesma coisa.
 
-### Sprint 5 — Ingestão
+### Sprint 4 — Matching v1 — **entregue (12/08/2026)**
 
-- Integration Layer
-- **Adapter CSV**
-- Normalizer + eventos
-- TikTok entra aqui, quando (e se) liberar
+`src/lib/matching.ts` + `src/components/matching/match-score.tsx`.
+
+- Score por regras, com **breakdown por componente** (nicho, histórico, alcance,
+  engajamento, oferta), cada um com o motivo em português
+- Pesos **renormalizados sobre os componentes disponíveis**: quem não tem
+  histórico não leva zero, é avaliado sem ele
+- `confidence` derivada da **procedência** dos sinais usados, exibida na UI
+- Busca dos dois lados: creator→produtos e seller→creators
+
+> **Correção encontrada rodando contra dado real:** só renormalizar não bastava.
+> Um creator de 1.800 seguidores sem histórico tirava **89**, contra **91** de um
+> de 128 mil com oito vendas — porque contas pequenas têm engajamento alto e dois
+> sinais favoráveis empatavam com cinco sinais fortes. Dois pontos de diferença
+> tornam o ranking inútil, que é justamente o que a §46 manda evitar.
+>
+> Entrou um **amortecimento por cobertura de evidência**: o score é puxado
+> proporcionalmente ao quanto da evidência possível existe. O mesmo par agora
+> marca **91 × 79**. Travado no teste `creator pequeno com engajamento alto não
+> empata com o estabelecido`.
+
+### Sprint 5 — Ingestão — **entregue (12/08/2026)**
+
+| Item | Onde |
+|---|---|
+| Parser de CSV (BOM, `;`, CRLF, aspas) | `src/lib/integration/csv.ts` |
+| Adapter de pedidos + idempotência | `src/lib/integration/orders-import.ts` |
+| Serviço de atribuição com janela explícita | `src/lib/attribution.ts` |
+| Upload + relatório de importação | `src/app/dashboard/pedidos/` |
+
+A atribuição é **gravada** (`attributedAffiliationId`, `attributedAt`,
+`attributionWindowDays`), nunca recalculada na leitura. Empate sem sinal fica
+**sem atribuição de propósito** — escolher um seria sortear a comissão de alguém.
+
+A taxa da comissão é **congelada na criação**: se o seller mudar a comissão
+amanhã, a venda de ontem não muda junto.
+
+TikTok entra aqui como segundo adapter, quando (e se) liberar — sem o domínio
+mudar uma linha.
 
 ---
 
@@ -353,7 +395,16 @@ Decisões tomadas na implementação, além do que estava escrito aqui:
       Zero dado de usuário. O `db push` está liberado
 - [ ] Rodar o `db push` do schema novo (o Prisma exige consentimento explícito
       para o comando destrutivo — ver o final da seção)
-- [ ] O dashboard atual é protótipo descartável, ou já foi mostrado/prometido a alguém?
+- [x] ~~O dashboard atual é protótipo descartável?~~ **Resolvido (12/08/2026):**
+      tratado como descartável, conforme a §7. Foram removidas as rotas do
+      escopo antigo (`rankings`, `influenciadores`, `influenciadores-ia`,
+      `modelo-viral`, `favoritos`) e os componentes que ficaram sem uso. As três
+      telas de IA (`conteudo-ia`, `pagina-vendas`, `inteligencia-mercado`)
+      continuam no ar por estarem na visão (§49), agora com aviso explícito de
+      protótipo — número de exemplo apresentado como real é o mesmo erro que a
+      §79 proíbe. **Se alguma dessas telas já foi mostrada a cliente, avise**
+- [ ] Definir se as três telas de IA entram no escopo de verdade (dependem de
+      chave de LLM) ou saem do menu
 - [x] ~~Sprint 0: Brasil é mercado suportado pela TikTok Shop API?~~
       **Sim** — 19 mercados, BR entre eles. Mas *acesso e scopes variam por
       mercado*, então a pergunta útil virou "o BR tem **estes** scopes"

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Sparkles, Check, Star, Copy, ShieldCheck } from "lucide-react";
 import { Topbar } from "@/components/layout/topbar";
+import { PrototypeNotice } from "@/components/ui/prototype-notice";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +33,7 @@ export default function PaginaVendasPage() {
       <Topbar title="Página de Vendas IA" subtitle="Monte uma oferta e página de vendas prontas em segundos" />
 
       <div className="flex flex-col gap-6 p-6">
+        <PrototypeNotice what="A geração de copy ainda não está ligada a um modelo de IA, e os produtos listados são de exemplo." />
         <Card>
           <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center">
             <Select value={productId} onValueChange={setProductId}>

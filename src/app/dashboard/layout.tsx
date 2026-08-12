@@ -16,11 +16,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div className="flex h-screen overflow-hidden">
-      <Sidebar profiles={profiles} activeProfileId={profile.id} />
+      <Sidebar profiles={profiles} activeProfileId={profile.id} activeType={profile.type} />
       <div data-scroll-container className="flex flex-1 flex-col overflow-y-auto pb-20 lg:pb-0">
         {children}
       </div>
-      <MobileNav />
+      <MobileNav activeType={profile.type} />
     </div>
   );
 }

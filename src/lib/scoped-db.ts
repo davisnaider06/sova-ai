@@ -55,6 +55,36 @@ export function sellerScope(sellerProfileId: string) {
           include: { economics: true },
         }),
 
+      /// O que a listagem precisa mostrar junto de cada produto: quantos
+      /// creators já promovem, quantos aguardam aprovação, e se os custos já
+      /// foram informados (sem eles a calculadora de comissão não roda).
+      listForIndex: (
+        args: ListArgs<Prisma.ProductWhereInput, Prisma.ProductOrderByWithRelationInput> = {},
+      ) =>
+        prisma.product.findMany({
+          ...args,
+          where: { ...args.where, sellerProfileId },
+          include: {
+            economics: { select: { productCost: true } },
+            _count: {
+              select: {
+                affiliations: { where: { status: "ACTIVE" } },
+              },
+            },
+          },
+        }),
+
+      /// Afiliações pendentes por produto, em uma consulta só — a listagem
+      /// precisa do número para o selo de "aguardando você".
+      pendingAffiliationCounts: async () => {
+        const rows = await prisma.affiliation.groupBy({
+          by: ["productId"],
+          where: { status: "PENDING", product: { sellerProfileId } },
+          _count: { _all: true },
+        });
+        return new Map(rows.map((r) => [r.productId, r._count._all]));
+      },
+
       count: (where: Prisma.ProductWhereInput = {}) =>
         prisma.product.count({ where: { ...where, sellerProfileId } }),
 
@@ -96,6 +126,46 @@ export function sellerScope(sellerProfileId: string) {
 
       findById: (id: string) => prisma.campaign.findFirst({ where: { id, sellerProfileId } }),
 
+      /// Listagem com o tamanho de cada campanha — quantos produtos entraram e
+      /// quantos creators aceitaram o convite.
+      listForIndex: (
+        args: ListArgs<Prisma.CampaignWhereInput, Prisma.CampaignOrderByWithRelationInput> = {},
+      ) =>
+        prisma.campaign.findMany({
+          ...args,
+          where: { ...args.where, sellerProfileId },
+          include: {
+            _count: {
+              select: {
+                products: true,
+                creators: { where: { status: "ACCEPTED" } },
+              },
+            },
+          },
+        }),
+
+      /// A campanha com os produtos vinculados e os creators convidados.
+      findByIdWithRelations: (id: string) =>
+        prisma.campaign.findFirst({
+          where: { id, sellerProfileId },
+          include: {
+            products: {
+              include: {
+                product: {
+                  select: { id: true, name: true, category: true, price: true, imageUrl: true },
+                },
+              },
+            },
+            creators: {
+              include: {
+                creatorProfile: {
+                  include: { profile: { select: { displayName: true } } },
+                },
+              },
+            },
+          },
+        }),
+
       count: (where: Prisma.CampaignWhereInput = {}) =>
         prisma.campaign.count({ where: { ...where, sellerProfileId } }),
 
@@ -133,6 +203,34 @@ export function sellerScope(sellerProfileId: string) {
 
       findById: (id: string) =>
         prisma.affiliation.findFirst({ where: { id, product: { sellerProfileId } } }),
+
+      /// Afiliações de um produto com quem é o creator do outro lado. A tela de
+      /// aprovação precisa de nome e audiência para o seller decidir — id de
+      /// perfil sozinho não é informação suficiente para dizer sim ou não.
+      listForProduct: (productId: string) =>
+        prisma.affiliation.findMany({
+          where: { productId, product: { sellerProfileId } },
+          orderBy: [{ status: "asc" }, { createdAt: "desc" }],
+          include: {
+            creatorProfile: {
+              include: { profile: { select: { displayName: true } } },
+            },
+          },
+        }),
+
+      /// Caixa de entrada: tudo que espera decisão do seller, de todos os
+      /// produtos, com o produto junto para dar contexto na mesma linha.
+      inbox: (status: Prisma.AffiliationWhereInput["status"] = "PENDING") =>
+        prisma.affiliation.findMany({
+          where: { status, product: { sellerProfileId } },
+          orderBy: { createdAt: "desc" },
+          include: {
+            product: { select: { id: true, name: true, category: true, price: true, imageUrl: true } },
+            creatorProfile: {
+              include: { profile: { select: { displayName: true } } },
+            },
+          },
+        }),
 
       /// Aprovar ou rejeitar um pedido de afiliação em produto deste seller.
       setStatus: (id: string, status: Prisma.AffiliationUncheckedUpdateInput["status"]) =>

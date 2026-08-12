@@ -1,133 +1,142 @@
-"use client";
-
-import { useRef, useState } from "react";
-import { Check } from "lucide-react";
-import { useUser } from "@clerk/nextjs";
+import { Link2, ShieldCheck } from "lucide-react";
 import { Topbar } from "@/components/layout/topbar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { plans } from "@/lib/mock-data";
-import { formatCurrencyBRL } from "@/lib/utils";
+import { Card } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { prisma } from "@/lib/db";
+import { requireProfile } from "@/lib/session";
+import { toPercent } from "@/lib/money";
+import { CreatorProfileForm } from "./creator-profile-form";
+import { SellerProfileForm } from "./seller-profile-form";
 
-export default function ConfiguracoesPage() {
-  const { user } = useUser();
-  const nameRef = useRef<HTMLInputElement>(null);
-  const [saving, setSaving] = useState(false);
-  const email = user?.primaryEmailAddress?.emailAddress || "";
-  const [storeName, setStoreName] = useState("Rocha Store BR");
+export default async function ConfiguracoesPage() {
+  const { user, profile } = await requireProfile();
 
-  async function handleSaveProfile() {
-    if (!user) return;
-    const formName = nameRef.current?.value.trim() || "";
-    setSaving(true);
-    const [firstName, ...rest] = formName.split(" ");
-    await user.update({ firstName, lastName: rest.join(" ") });
-    setSaving(false);
-  }
+  const [creator, seller, externalAccounts] = await Promise.all([
+    profile.type === "CREATOR"
+      ? prisma.creatorProfile.findUnique({ where: { profileId: profile.id } })
+      : null,
+    profile.type === "SELLER"
+      ? prisma.sellerProfile.findUnique({ where: { profileId: profile.id } })
+      : null,
+    prisma.externalAccount.findMany({
+      where: { profileId: profile.id },
+      select: { provider: true, status: true, lastSyncedAt: true },
+    }),
+  ]);
+
+  const tiktok = externalAccounts.find((a) => a.provider === "TIKTOK") ?? null;
 
   return (
     <>
-      <Topbar title="Configurações" subtitle="Gerencie sua conta, loja e plano" />
+      <Topbar
+        title="Configurações"
+        subtitle={profile.type === "CREATOR" ? "Seu perfil de creator" : "Seu perfil de seller"}
+      />
 
       <div className="p-6">
         <Tabs defaultValue="perfil">
           <TabsList>
             <TabsTrigger value="perfil">Perfil</TabsTrigger>
-            <TabsTrigger value="loja">Loja</TabsTrigger>
-            <TabsTrigger value="plano">Plano & Cobrança</TabsTrigger>
-            <TabsTrigger value="notificacoes">Notificações</TabsTrigger>
+            <TabsTrigger value="integracoes">Integrações</TabsTrigger>
+            <TabsTrigger value="conta">Conta</TabsTrigger>
           </TabsList>
 
           <TabsContent value="perfil">
-            <Card className="max-w-xl">
-              <CardHeader>
-                <CardTitle>Dados pessoais</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="name">Nome</Label>
-                  <Input
-                    id="name"
-                    ref={nameRef}
-                    key={user?.id}
-                    defaultValue={user?.fullName || user?.firstName || ""}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="email">E-mail</Label>
-                  <Input id="email" value={email} disabled />
-                </div>
-                <Button onClick={handleSaveProfile} disabled={saving}>
-                  {saving ? "Salvando..." : "Salvar alterações"}
-                </Button>
-              </CardContent>
-            </Card>
+            {profile.type === "CREATOR" ? (
+              <CreatorProfileForm
+                values={{
+                  displayName: profile.displayName,
+                  bio: creator?.bio ?? "",
+                  niches: creator?.niches ?? [],
+                  followersCount: creator?.followersCount?.toString() ?? "",
+                  averageViews: creator?.averageViews?.toString() ?? "",
+                  engagementRate: creator?.engagementRate
+                    ? String(toPercent(creator.engagementRate))
+                    : "",
+                }}
+              />
+            ) : (
+              <SellerProfileForm
+                values={{
+                  displayName: profile.displayName,
+                  companyName: seller?.companyName ?? "",
+                  document: seller?.document ?? "",
+                  businessType: seller?.businessType ?? "",
+                }}
+              />
+            )}
           </TabsContent>
 
-          <TabsContent value="loja">
-            <Card className="max-w-xl">
-              <CardHeader>
-                <CardTitle>Loja conectada</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="store">Nome da loja</Label>
-                  <Input id="store" value={storeName} onChange={(e) => setStoreName(e.target.value)} />
+          <TabsContent value="integracoes">
+            {/* Status honesto. A integração com o TikTok depende de aprovação no
+                Partner Center, que ainda não aconteceu — dizer "Conectada" numa
+                tela de demonstração é o tipo de mentira que só aparece na frente
+                do cliente. */}
+            <Card className="flex max-w-2xl flex-col gap-4 p-5">
+              <div className="flex items-start gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-surface-2 text-ink-muted">
+                  <Link2 className="h-4 w-4" />
+                </span>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium text-ink-primary">TikTok Shop</p>
+                    <Badge variant={tiktok ? "good" : "subtle"}>
+                      {tiktok ? "Conectada" : "Não conectada"}
+                    </Badge>
+                  </div>
+                  <p className="mt-1.5 text-sm text-ink-muted">
+                    {tiktok
+                      ? tiktok.lastSyncedAt
+                        ? `Última sincronização em ${tiktok.lastSyncedAt.toLocaleDateString("pt-BR")}.`
+                        : "Conectada, aguardando primeira sincronização."
+                      : "A conexão via OAuth entra quando o app for aprovado no Partner Center. Até lá, os pedidos entram por importação de planilha."}
+                  </p>
                 </div>
+              </div>
+
+              {!tiktok && (
                 <div className="rounded-xl bg-surface-2 p-4 text-sm text-ink-secondary">
-                  Integração com TikTok Shop: <Badge variant="good" className="ml-1">Conectada</Badge>
+                  <p className="font-medium text-ink-primary">Enquanto isso</p>
+                  <p className="mt-1">
+                    A importação de pedidos por CSV cobre o mesmo fluxo: os pedidos
+                    entram, a atribuição roda e as comissões são geradas do mesmo
+                    jeito. Quando a API liberar, ela vira só mais uma fonte.
+                  </p>
                 </div>
-                <Button variant="outline">Reconectar loja</Button>
-              </CardContent>
+              )}
             </Card>
           </TabsContent>
 
-          <TabsContent value="plano">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              {plans.map((plan) => {
-                const active = plan.name === "Pro";
-                return (
-                  <Card key={plan.id} className={active ? "border-brand p-5 shadow-[0_0_0_1px_var(--brand)]" : "p-5"}>
-                    {active && <Badge className="mb-3 w-fit">Plano atual</Badge>}
-                    <h3 className="text-lg font-semibold">{plan.name}</h3>
-                    <p className="mt-1 text-sm text-ink-muted">{plan.tagline}</p>
-                    <p className="mt-4 text-2xl font-semibold">
-                      {formatCurrencyBRL(plan.price)}
-                      <span className="text-sm text-ink-muted">/mês</span>
-                    </p>
-                    <ul className="mt-4 space-y-2">
-                      {plan.features.slice(0, 3).map((f) => (
-                        <li key={f} className="flex items-start gap-2 text-xs text-ink-secondary">
-                          <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand" /> {f}
-                        </li>
-                      ))}
-                    </ul>
-                    <Button className="mt-5 w-full" variant={active ? "outline" : "default"} disabled={active}>
-                      {active ? "Plano atual" : "Fazer upgrade"}
-                    </Button>
-                  </Card>
-                );
-              })}
-            </div>
-          </TabsContent>
+          <TabsContent value="conta">
+            <Card className="flex max-w-2xl flex-col gap-4 p-5">
+              <div className="flex items-start gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-surface-2 text-ink-muted">
+                  <ShieldCheck className="h-4 w-4" />
+                </span>
+                <div>
+                  <p className="text-sm font-medium text-ink-primary">{user.email}</p>
+                  <p className="mt-1 text-sm text-ink-muted">
+                    E-mail, senha e login social são gerenciados pelo Clerk. Use o
+                    menu do seu avatar, no topo, para alterá-los.
+                  </p>
+                </div>
+              </div>
 
-          <TabsContent value="notificacoes">
-            <Card className="max-w-xl">
-              <CardHeader>
-                <CardTitle>Preferências de notificação</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {["Novas oportunidades de produto", "Alertas de concorrência", "Relatório semanal de GMV"].map((n) => (
-                  <label key={n} className="flex items-center justify-between rounded-xl bg-surface-2 px-4 py-3 text-sm text-ink-secondary">
-                    {n}
-                    <input type="checkbox" defaultChecked className="h-4 w-4 accent-[var(--brand)]" />
-                  </label>
-                ))}
-              </CardContent>
+              <div className="rounded-xl bg-surface-2 p-4">
+                <p className="text-xs text-ink-muted">Perfis nesta conta</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {user.profiles.map((p) => (
+                    <Badge key={p.id} variant={p.id === profile.id ? "default" : "subtle"}>
+                      {p.type === "CREATOR" ? "Creator" : "Seller"} · {p.displayName}
+                    </Badge>
+                  ))}
+                </div>
+                <p className="mt-3 text-xs text-ink-muted">
+                  Um mesmo login pode ter os dois papéis. Alterne pelo seletor na
+                  barra lateral.
+                </p>
+              </div>
             </Card>
           </TabsContent>
         </Tabs>

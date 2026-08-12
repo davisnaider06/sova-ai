@@ -1,5 +1,6 @@
 import { TrendingUp, TrendingDown } from "lucide-react";
 import { Topbar } from "@/components/layout/topbar";
+import { PrototypeNotice } from "@/components/ui/prototype-notice";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { GmvAreaChart } from "@/components/charts/gmv-area-chart";
 import { gmvHistory } from "@/lib/mock-data";
@@ -22,6 +23,7 @@ export default async function InteligenciaMercadoPage() {
       <Topbar title="Inteligência de Mercado" subtitle="Sinais e tendências para decidir com dados" />
 
       <div className="flex flex-col gap-6 p-6">
+        <PrototypeNotice what="Os sinais de mercado dependem da ingestão do TikTok Shop, que ainda não está liberada." />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {marketSignals.map((s) => (
             <Card key={s.id}>

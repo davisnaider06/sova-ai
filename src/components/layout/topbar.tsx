@@ -16,7 +16,7 @@ function greeting() {
 
 export function Topbar({ title, subtitle }: { title: string; subtitle?: string }) {
   const { user } = useUser();
-  const firstName = user?.firstName || "Vendedor";
+  const firstName = user?.firstName || user?.username || null;
   const [scrolled, setScrolled] = useState(false);
   const headerRef = useRef<HTMLElement>(null);
 
@@ -43,7 +43,7 @@ export function Topbar({ title, subtitle }: { title: string; subtitle?: string }
         <div className="min-w-0">
           {!scrolled && (
             <p className="text-xs font-medium text-ink-muted">
-              {greeting()}, {firstName}
+              {firstName ? `${greeting()}, ${firstName}` : greeting()}
             </p>
           )}
           <h1

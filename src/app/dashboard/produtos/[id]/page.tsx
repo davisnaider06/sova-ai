@@ -1,97 +1,209 @@
-import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, TrendingUp, TrendingDown, Sparkles } from "lucide-react";
+import { notFound } from "next/navigation";
+import { ArrowLeft, Package, Users } from "lucide-react";
 import { Topbar } from "@/components/layout/topbar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { getProductById } from "@/lib/data";
-import { formatCurrencyBRL, formatCompactNumber, formatPercent, cn } from "@/lib/utils";
-import { ProductIcon } from "@/components/dashboard/product-icon";
+import { Card } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ProductForm } from "@/components/produtos/product-form";
+import { CommissionCalculator } from "@/components/produtos/commission-calculator";
+import { requireSellerScope } from "@/lib/session";
+import { formatBRL, formatPercent, toCents, toPercent } from "@/lib/money";
+import { DEFAULT_MINIMUM_MARGIN, DEFAULT_TARGET_MARGIN } from "@/lib/pricing";
+import { updateProduct } from "../actions";
+import { EconomicsForm } from "./economics-form";
+import { ProductAffiliations } from "./product-affiliations";
 
-const competitionVariant = { Baixa: "good", Média: "warning", Alta: "critical" } as const;
-
-export default async function ProdutoDetalhePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ProdutoPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
-  const product = await getProductById(id);
+  const { scope } = await requireSellerScope();
+
+  const product = await scope.products.findByIdWithEconomics(id);
   if (!product) notFound();
 
-  const positive = product.growth >= 0;
+  const affiliations = await scope.affiliations.listForProduct(id);
+
+  const priceCents = toCents(product.price);
+  const economics = product.economics;
+
+  const costs = {
+    productCost: toCents(economics?.productCost),
+    shippingCost: toCents(economics?.shippingCost),
+    platformFee: toCents(economics?.platformFee),
+    operationalCost: toCents(economics?.operationalCost),
+  };
+
+  const minimumMargin = economics?.minimumMargin
+    ? Number(economics.minimumMargin.toString())
+    : DEFAULT_MINIMUM_MARGIN;
+  const targetMargin = economics?.targetMargin
+    ? Number(economics.targetMargin.toString())
+    : DEFAULT_TARGET_MARGIN;
+
+  // Maior taxa efetivamente praticada nas afiliações vivas: é ela que a
+  // calculadora compara com o teto, não a taxa teórica do produto.
+  const activeRates = affiliations
+    .filter((a) => a.status === "ACTIVE")
+    .map((a) => Number(a.commissionRate.toString()));
+  const currentRate = activeRates.length > 0 ? Math.max(...activeRates) : null;
+
+  const pendingCount = affiliations.filter((a) => a.status === "PENDING").length;
 
   return (
     <>
       <Topbar title={product.name} subtitle={product.category} />
 
-      <div className="flex flex-col gap-6 p-6">
-        <Link href="/dashboard/produtos" className="flex w-fit items-center gap-2 text-sm text-ink-muted hover:text-ink-primary">
-          <ArrowLeft className="h-4 w-4" /> Voltar para produtos
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-5 p-6">
+        <Link
+          href="/dashboard/produtos"
+          className="flex w-fit items-center gap-1.5 text-sm text-ink-muted transition-colors hover:text-ink-primary"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Voltar para produtos
         </Link>
 
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <Card className="lg:col-span-2">
-            <CardContent className="flex items-start gap-4 p-6">
-              <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-surface-2">
-                <ProductIcon name={product.image} className="h-9 w-9" />
-              </span>
-              <div>
-                <h1 className="text-xl font-semibold text-ink-primary">{product.name}</h1>
-                <p className="text-sm text-ink-muted">{product.category}</p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Badge variant={product.demand === "Alta" ? "good" : "warning"}>Demanda {product.demand}</Badge>
-                  <Badge variant={competitionVariant[product.competition]}>Concorrência {product.competition}</Badge>
-                  <Badge
-                    className={cn(
-                      "flex items-center gap-1",
-                      positive ? "text-[#4ade80]" : "text-[#f87171]",
-                    )}
-                    variant="subtle"
-                  >
-                    {positive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                    {formatPercent(product.growth, { signed: true })}
-                  </Badge>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        <Card className="flex flex-wrap items-center gap-x-8 gap-y-4 p-5">
+          <span className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-surface-2">
+            {product.imageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={product.imageUrl} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <Package className="h-6 w-6 text-ink-muted" />
+            )}
+          </span>
 
-          <div className="flex flex-col justify-center rounded-2xl bg-brand p-6 text-brand-foreground">
-            <p className="text-xs font-medium opacity-70">Opportunity Score</p>
-            <p className="text-4xl font-semibold">{product.opportunityScore}/100</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          <StatTile label="Preço sugerido" value={formatCurrencyBRL(product.price)} />
-          <StatTile label="Margem estimada" value={`${product.margin}%`} />
-          <StatTile label="Vendas / 30 dias" value={formatCompactNumber(product.sales30d)} />
-          <StatTile label="Criadores promovendo" value={product.creators.toString()} />
-        </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Próximo passo</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3 sm:flex-row">
-            <Button asChild>
-              <Link href="/dashboard/descobrir">
-                <Sparkles className="h-4 w-4" /> Gerar roteiro para este produto
-              </Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link href="/dashboard/conteudo-ia">Criar vídeo com IA</Link>
-            </Button>
-          </CardContent>
+          <Summary label="Preço" value={formatBRL(priceCents)} />
+          <Summary
+            label="Custos"
+            value={economics ? formatBRL(costs.productCost + costs.shippingCost + costs.platformFee + costs.operationalCost) : "—"}
+            hint={economics ? undefined : "não informados"}
+          />
+          <Summary
+            label="Creators ativos"
+            value={String(affiliations.filter((a) => a.status === "ACTIVE").length)}
+          />
+          <Summary
+            label="Comissão praticada"
+            value={currentRate !== null ? formatPercent(currentRate) : "—"}
+          />
         </Card>
+
+        <Tabs defaultValue={economics ? "comissao" : "dados"}>
+          <TabsList>
+            <TabsTrigger value="dados">Dados</TabsTrigger>
+            <TabsTrigger value="comissao">Custos e comissão</TabsTrigger>
+            <TabsTrigger value="creators">
+              <span className="flex items-center gap-1.5">
+                <Users className="h-3.5 w-3.5" />
+                Creators
+                {pendingCount > 0 && (
+                  <Badge variant="warning" className="px-1.5 py-0 text-[10px]">
+                    {pendingCount}
+                  </Badge>
+                )}
+              </span>
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="dados">
+            <ProductForm
+              action={updateProduct}
+              submitLabel="Salvar alterações"
+              values={{
+                id: product.id,
+                name: product.name,
+                description: product.description ?? "",
+                category: product.category,
+                price: (priceCents / 100).toFixed(2).replace(".", ","),
+                stockQuantity: product.stockQuantity?.toString() ?? "",
+                status: product.status,
+                imageUrl: product.imageUrl ?? "",
+              }}
+            />
+          </TabsContent>
+
+          <TabsContent value="comissao">
+            <div className="grid gap-5 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
+              <EconomicsForm
+                productId={product.id}
+                values={{
+                  productCost: economics ? centsToInput(costs.productCost) : "",
+                  shippingCost: economics ? centsToInput(costs.shippingCost) : "",
+                  platformFee: economics ? centsToInput(costs.platformFee) : "",
+                  operationalCost: economics ? centsToInput(costs.operationalCost) : "",
+                  minimumMargin: economics?.minimumMargin
+                    ? String(toPercent(economics.minimumMargin))
+                    : String(DEFAULT_MINIMUM_MARGIN * 100),
+                  targetMargin: economics?.targetMargin
+                    ? String(toPercent(economics.targetMargin))
+                    : String(DEFAULT_TARGET_MARGIN * 100),
+                }}
+              />
+
+              {economics ? (
+                <CommissionCalculator
+                  priceCents={priceCents}
+                  costs={costs}
+                  minimumMargin={minimumMargin}
+                  targetMargin={targetMargin}
+                  currentRate={currentRate}
+                />
+              ) : (
+                <Card className="flex flex-col items-center justify-center p-8 text-center">
+                  <p className="text-sm font-medium text-ink-primary">
+                    Informe os custos ao lado
+                  </p>
+                  <p className="mt-1.5 max-w-xs text-sm text-ink-muted">
+                    A comissão recomendada sai da diferença entre o preço e o que
+                    esse produto custa para você. Sem os custos, qualquer número
+                    aqui seria chute.
+                  </p>
+                </Card>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="creators">
+            <ProductAffiliations
+              affiliations={affiliations.map((a) => ({
+                id: a.id,
+                status: a.status,
+                commissionRate: Number(a.commissionRate.toString()),
+                creatorName: a.creatorProfile.profile.displayName,
+                followers: a.creatorProfile.followersCount,
+                niches: a.creatorProfile.niches,
+                createdAt: a.createdAt.toISOString(),
+              }))}
+            />
+          </TabsContent>
+        </Tabs>
       </div>
     </>
   );
 }
 
-function StatTile({ label, value }: { label: string; value: string }) {
+function centsToInput(cents: number): string {
+  return (cents / 100).toFixed(2).replace(".", ",");
+}
+
+function Summary({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+}) {
   return (
-    <Card className="p-4">
-      <p className="text-lg font-semibold text-ink-primary">{value}</p>
+    <div>
       <p className="text-xs text-ink-muted">{label}</p>
-    </Card>
+      <p className="mt-0.5 text-lg font-semibold tracking-tight text-ink-primary">{value}</p>
+      {hint && <p className="text-[11px] text-ink-muted">{hint}</p>}
+    </div>
   );
 }

@@ -3,62 +3,52 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useUser, useClerk } from "@clerk/nextjs";
-import {
-  LayoutDashboard,
-  Package,
-  Compass,
-  Users,
-  Bot,
-  Wand2,
-  Radar,
-  Heart,
-  Settings,
-  LogOut,
-  Trophy,
-  FileText,
-} from "lucide-react";
+import { LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Logo } from "@/components/brand/logo";
 import { ProfileSwitcher, type ProfileSummary } from "@/components/layout/profile-switcher";
+import { isNavItemActive, navFor, secondaryNav, type NavItem } from "@/lib/nav";
+import type { ProfileType } from "@/generated/prisma";
 
-const nav = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/dashboard/produtos", label: "Produtos", icon: Package },
-  { href: "/dashboard/descobrir", label: "Descobrir Produtos", icon: Compass },
-  { href: "/dashboard/rankings", label: "Rankings", icon: Trophy },
-  { href: "/dashboard/influenciadores", label: "Influenciadores", icon: Users },
-  { href: "/dashboard/influenciadores-ia", label: "Influenciadores IA", icon: Bot },
-  { href: "/dashboard/conteudo-ia", label: "Conteúdo IA", icon: Wand2 },
-  { href: "/dashboard/pagina-vendas", label: "Página de Vendas IA", icon: FileText },
-  { href: "/dashboard/inteligencia-mercado", label: "Inteligência de Mercado", icon: Radar },
-];
-
-const navSecondary = [
-  { href: "/dashboard/favoritos", label: "Favoritos", icon: Heart },
-  { href: "/dashboard/configuracoes", label: "Configurações", icon: Settings },
-];
+function NavLink({ item, active }: { item: NavItem; active: boolean }) {
+  return (
+    <Link
+      href={item.href}
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+        active
+          ? "bg-brand text-brand-foreground"
+          : "text-ink-secondary hover:bg-surface-2 hover:text-ink-primary",
+      )}
+    >
+      <item.icon className="h-4 w-4" />
+      {item.label}
+    </Link>
+  );
+}
 
 export function Sidebar({
   profiles = [],
   activeProfileId = null,
+  activeType,
 }: {
   profiles?: ProfileSummary[];
   activeProfileId?: string | null;
+  activeType: ProfileType;
 }) {
   const pathname = usePathname();
   const { user } = useUser();
   const { signOut } = useClerk();
 
-  function isActive(href: string) {
-    if (href === "/dashboard") return pathname === "/dashboard";
-    return pathname?.startsWith(href);
-  }
+  const sections = navFor(activeType);
+  const secondary = secondaryNav();
 
-  const name = user?.fullName || user?.firstName || "Vendedor";
+  const name = user?.fullName || user?.firstName || "Minha conta";
   const email = user?.primaryEmailAddress?.emailAddress || "";
-  const initials = (name || "V")
+  const initials = (name || "S")
     .split(" ")
     .map((p) => p[0])
     .slice(0, 2)
@@ -71,46 +61,27 @@ export function Sidebar({
         <Logo size={30} />
       </Link>
 
-      <nav className="mt-8 flex flex-1 flex-col gap-1">
-        {nav.map((item) => {
-          const active = isActive(item.href);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
-                active
-                  ? "bg-brand text-brand-foreground"
-                  : "text-ink-secondary hover:bg-surface-2 hover:text-ink-primary",
-              )}
-            >
-              <item.icon className="h-4 w-4" />
-              {item.label}
-            </Link>
-          );
-        })}
+      <nav className="scrollbar-none mt-6 flex flex-1 flex-col gap-1 overflow-y-auto">
+        {sections.map((section, i) => (
+          <div key={section.title ?? i} className={cn(i > 0 && "mt-4")}>
+            {section.title && (
+              <p className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-ink-muted">
+                {section.title}
+              </p>
+            )}
+            <div className="flex flex-col gap-1">
+              {section.items.map((item) => (
+                <NavLink key={item.href} item={item} active={isNavItemActive(item.href, pathname)} />
+              ))}
+            </div>
+          </div>
+        ))}
 
         <div className="my-3 h-px bg-border-hairline" />
 
-        {navSecondary.map((item) => {
-          const active = isActive(item.href);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
-                active
-                  ? "bg-brand text-brand-foreground"
-                  : "text-ink-secondary hover:bg-surface-2 hover:text-ink-primary",
-              )}
-            >
-              <item.icon className="h-4 w-4" />
-              {item.label}
-            </Link>
-          );
-        })}
+        {secondary.map((item) => (
+          <NavLink key={item.href} item={item} active={isNavItemActive(item.href, pathname)} />
+        ))}
       </nav>
 
       <div className="glass-surface mt-4 rounded-2xl p-3">
@@ -127,7 +98,7 @@ export function Sidebar({
           </div>
         </div>
         <div className="mt-3 flex items-center justify-between">
-          <Badge variant="subtle">Plano Pro</Badge>
+          <Badge variant="subtle">{activeType === "SELLER" ? "Seller" : "Creator"}</Badge>
           <button
             onClick={() => signOut({ redirectUrl: "/" })}
             className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-ink-muted transition-colors hover:bg-surface-2 hover:text-ink-primary"
