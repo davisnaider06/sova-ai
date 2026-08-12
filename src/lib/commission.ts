@@ -253,6 +253,42 @@ export function evaluateCommissionRate(
   };
 }
 
+/// Passos padrão da escada da §43 do doc de arquitetura.
+export const DEFAULT_LADDER = [0.05, 0.1, 0.15, 0.2, 0.25, 0.3];
+
+export type LadderRow = RateEvaluation & {
+  /// A taxa recomendada cai entre dois degraus; este marca o degrau mais
+  /// próximo dela, para a UI destacar uma linha sem inventar um valor.
+  isRecommended: boolean;
+};
+
+/// "10% → margem X, 15% → margem X, …" — a tabela da §43.
+///
+/// Mostrar a escada em vez de um número só é o que faz o seller entender o
+/// trade-off: ele vê o que ganha e o que perde em cada degrau, e escolhe. Um
+/// número sozinho ele aceita ou ignora, mas não entende.
+export function commissionLadder(
+  inputs: CommissionInputs,
+  rates: number[] = DEFAULT_LADDER,
+): LadderRow[] {
+  const analysis = analyzeCommission(inputs);
+  const target = analysis.recommendedRate;
+
+  // O degrau recomendado é o maior que ainda não passa da taxa alvo — o seller
+  // nunca é empurrado para cima do que a margem dele aguenta.
+  let bestIndex = -1;
+  if (target !== null) {
+    rates.forEach((rate, i) => {
+      if (target.gte(rate)) bestIndex = i;
+    });
+  }
+
+  return rates.map((rate, i) => ({
+    ...evaluateCommissionRate(inputs, rate),
+    isRecommended: i === bestIndex,
+  }));
+}
+
 /// Formata fração como percentual para a UI: 0.1875 → "18,75%".
 export function formatRate(rate: Decimal | number | string | null): string {
   if (rate === null) return "—";

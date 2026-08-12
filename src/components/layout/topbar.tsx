@@ -34,10 +34,12 @@ export function Topbar({ title, subtitle }: { title: string; subtitle?: string }
       <header
         ref={headerRef}
         className={cn(
-          "glass-pill sticky top-0 z-30 flex items-center justify-between gap-4 transition-[margin,padding,border-radius,box-shadow] duration-300 ease-out",
-          scrolled
-            ? "mx-3 mt-3 rounded-full px-5 py-2.5 sm:mx-6"
-            : "flex-col rounded-none border-x-0 border-t-0 px-6 py-5 sm:flex-row sm:items-center",
+          // Pílula flutuante SEMPRE: arredondada e descolada do topo, em
+          // qualquer posição de rolagem. Antes ela era um cabeçalho chapado
+          // colado no topo e só virava pílula depois de rolar — agora a forma
+          // é constante e só o tamanho responde à rolagem.
+          "glass-pill sticky top-3 z-30 mx-3 mt-3 flex items-center justify-between gap-4 rounded-full px-5 transition-[padding,box-shadow] duration-300 ease-out sm:mx-6",
+          scrolled ? "py-2.5" : "py-3.5",
         )}
       >
         <div className="min-w-0">

@@ -1,4 +1,4 @@
-import { analyzeCommission, evaluateCommissionRate, formatRate, formatMoney } from "../src/lib/commission";
+import { analyzeCommission, evaluateCommissionRate, commissionLadder, formatRate, formatMoney } from "../src/lib/commission";
 import { platformFee, TIKTOK_SHOP_BR } from "../src/lib/platform-fees";
 
 let failures = 0;
@@ -150,6 +150,35 @@ check("status", barato.status, "OK");
 // por causa dos R$ 4,00 fixos.
 const semTabela = analyzeCommission({ price: 29.9, productCost: 12, minimumMargin: 0.2 });
 check("sem a tabela, teto aparente", semTabela.maxRate, "0.3986");
+
+console.log("\n--- Caso 11: escada de comissão (§43) ---");
+// Produto R$89,90, custo R$30, taxa da tabela, margem alvo 25%.
+const escadaInputs = {
+  price: 89.9,
+  productCost: 30,
+  feeSchedule: TIKTOK_SHOP_BR,
+  minimumMargin: 0.15,
+  targetMargin: 0.25,
+};
+const escada = commissionLadder(escadaInputs);
+check("tem 6 degraus", escada.length, 6);
+check("degraus em ordem", escada.map((r) => String(r.rate)).join(","), "0.05,0.1,0.15,0.2,0.25,0.3");
+// Taxa = 89,90×0,06 + 6 = 5,40 (arredonda pra cima) + 6 = 11,40. Custo total 41,40.
+check("custo total", analyzeCommission(escadaInputs).totalCost, "41.4");
+// Recomendada = 89,90×0,75 − 41,40 = 67,42 − 41,40 = 26,02 → 28,94%
+check("taxa recomendada", analyzeCommission(escadaInputs).recommendedRate, "0.2894");
+// Maior degrau que não passa de 28,94% é 25%.
+check("degrau recomendado", escada.find((r) => r.isRecommended)?.rate, "0.25");
+check("só um degrau marcado", escada.filter((r) => r.isRecommended).length, 1);
+// Margem em cada degrau cai conforme a comissão sobe.
+const margens = escada.map((r) => r.netMarginRate.toNumber());
+check("margem sempre decrescente", margens.every((m, i) => i === 0 || m < margens[i - 1]), true);
+// Com margem mínima 15%, degraus muito altos deixam de ser viáveis.
+check("30% ainda viável?", escada[5].viable, true);
+
+// Produto sem espaço nenhum: nenhum degrau é marcado como recomendado.
+const semEspaco = commissionLadder({ price: 100, productCost: 85, minimumMargin: 0.2 });
+check("sem espaço, nenhum degrau recomendado", semEspaco.filter((r) => r.isRecommended).length, 0);
 
 console.log("\n--- Caso 8: formatação pt-BR ---");
 check("taxa", formatRate(0.1875), "18,75%");

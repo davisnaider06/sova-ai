@@ -1,223 +1,130 @@
-"use client";
-
-import { useState } from "react";
-import {
-  Link2,
-  Sparkles,
-  TrendingUp,
-  Users2,
-  DollarSign,
-  Flame,
-  Hash,
-  FileText,
-  Copy,
-  Check,
-} from "lucide-react";
+import { Compass } from "lucide-react";
 import { Topbar } from "@/components/layout/topbar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { analyzeProductLink } from "@/lib/mock-data";
-import { formatCurrencyBRL, formatCompactNumber } from "@/lib/utils";
-import { ProductIcon } from "@/components/dashboard/product-icon";
+import { Card, CardContent } from "@/components/ui/card";
+import { ProductDiscoveryCard } from "@/components/creator/product-discovery-card";
+import { requireCreatorScope } from "@/lib/session";
+import { prisma } from "@/lib/db";
+import { analyzeCommission } from "@/lib/commission";
+import { TIKTOK_SHOP_BR } from "@/lib/platform-fees";
+import { estimateEarnings } from "@/lib/creator-earnings";
+import { requestAffiliation } from "@/app/dashboard/afiliacoes/actions";
 
-type Analysis = ReturnType<typeof analyzeProductLink>;
+// Funcionalidades #2 e #3 do lado creator: produtos que combinam com o público
+// dele, e quanto cada um paga — antes de gravar.
+export default async function DescobrirPage() {
+  const { scope, profile } = await requireCreatorScope();
 
-export default function DescobrirPage() {
-  const [url, setUrl] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<Analysis | null>(null);
-  const [copied, setCopied] = useState<string | null>(null);
+  const creator = await prisma.creatorProfile.findUnique({
+    where: { profileId: profile.id },
+  });
 
-  function handleAnalyze(e: React.FormEvent) {
-    e.preventDefault();
-    if (!url.trim()) return;
-    setLoading(true);
-    setResult(null);
-    setTimeout(() => {
-      setResult(analyzeProductLink(url));
-      setLoading(false);
-    }, 1400);
-  }
+  const [products, myAffiliations] = await Promise.all([
+    prisma.product.findMany({
+      where: { status: "ACTIVE" },
+      include: { economics: true, sellerProfile: { include: { profile: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 60,
+    }),
+    scope.affiliations.findMany({}),
+  ]);
 
-  function copy(text: string, key: string) {
-    navigator.clipboard?.writeText(text);
-    setCopied(key);
-    setTimeout(() => setCopied(null), 1500);
+  const affiliatedProductIds = new Set(myAffiliations.map((a) => a.productId));
+  const niches = creator?.niches ?? [];
+
+  const cards = products.map((product) => {
+    const economics = product.economics;
+    const analysis = economics
+      ? analyzeCommission({
+          price: product.price.toString(),
+          productCost: economics.productCost.toString(),
+          shippingCost: economics.shippingCost.toString(),
+          operationalCost: economics.operationalCost.toString(),
+          feeSchedule: TIKTOK_SHOP_BR,
+          minimumMargin: economics.minimumMargin?.toString() ?? null,
+          targetMargin: economics.targetMargin?.toString() ?? null,
+        })
+      : null;
+
+    const rate = analysis?.recommendedRate ?? null;
+
+    const earnings = estimateEarnings({
+      price: product.price.toString(),
+      commissionRate: rate?.toString() ?? 0,
+      averageViews: creator?.averageViews ?? null,
+      basis: creator?.averageViews ? "DECLARED" : "INFERRED",
+    });
+
+    return {
+      id: product.id,
+      name: product.name,
+      category: product.category,
+      price: product.price.toString(),
+      imageUrl: product.imageUrl,
+      sellerName: product.sellerProfile.profile.displayName,
+      commissionRate: rate?.toString() ?? null,
+      perSale: earnings.perSale.toString(),
+      estimatedLow: earnings.estimatedLow?.toString() ?? null,
+      estimatedHigh: earnings.estimatedHigh?.toString() ?? null,
+      basis: earnings.basis,
+      // Sinal simples de afinidade: a categoria do produto está entre os nichos
+      // declarados pelo creator. É `DECLARED`, e a UI diz isso — não é match
+      // baseado em performance, que só existe depois de haver venda.
+      matchesNiche: niches.includes(product.category),
+      alreadyRequested: affiliatedProductIds.has(product.id),
+    };
+  });
+
+  // Produtos do nicho declarado primeiro, depois os que pagam mais por venda.
+  cards.sort((a, b) => {
+    if (a.matchesNiche !== b.matchesNiche) return a.matchesNiche ? -1 : 1;
+    return Number(b.perSale) - Number(a.perSale);
+  });
+
+  async function request(productId: string) {
+    "use server";
+    return requestAffiliation(productId);
   }
 
   return (
     <>
-      <Topbar title="Descobrir Produtos" subtitle="Cole o link de um produto e receba a análise completa em segundos" />
+      <Topbar
+        title="Descobrir produtos"
+        subtitle="O que vende para quem te assiste, e quanto paga"
+      />
 
-      <div className="flex flex-col gap-6 p-6">
-        <Card>
-          <CardContent className="p-5">
-            <form onSubmit={handleAnalyze} className="flex flex-col gap-3 sm:flex-row">
-              <div className="relative flex-1">
-                <Link2 className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted" />
-                <Input
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  placeholder="Cole aqui o link do produto (TikTok Shop, AliExpress, Shopee...)"
-                  className="pl-11"
-                />
+      <div className="px-3 py-5 sm:px-6">
+        {cards.length === 0 ? (
+          <Card>
+            <CardContent className="flex flex-col items-center py-16 text-center">
+              <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-selected/10">
+                <Compass className="h-6 w-6 text-ink-secondary" />
+              </span>
+              <p className="mt-5 text-lg font-medium text-ink-primary">
+                Nenhum produto disponível ainda
+              </p>
+              <p className="mt-2 max-w-sm text-sm text-ink-muted">
+                Assim que uma loja publicar um produto ativo, ele aparece aqui com a comissão e o
+                quanto você ganha por venda.
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            {niches.length === 0 && (
+              <div className="mb-4 rounded-xl bg-selected/[0.05] p-4 text-sm text-ink-secondary">
+                Você ainda não escolheu seus nichos. Sem isso, a ordem abaixo é só por quanto o
+                produto paga — não por combinar com o seu público.
               </div>
-              <Button type="submit" size="lg" disabled={loading || !url.trim()}>
-                {loading ? "Analisando..." : "Analisar com IA"} <Sparkles className="h-4 w-4" />
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+            )}
 
-        {loading && (
-          <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-border-hairline bg-surface-1 py-20 text-center">
-            <Sparkles className="h-6 w-6 animate-pulse text-brand-ink" />
-            <p className="text-sm text-ink-secondary">
-              Analisando volume de vendas, concorrência, vídeos virais e gerando roteiro...
-            </p>
-          </div>
-        )}
-
-        {!loading && !result && (
-          <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-border-strong py-20 text-center text-ink-muted">
-            <Link2 className="h-8 w-8" />
-            <p className="text-sm">Cole um link acima para ver a mágica acontecer.</p>
-          </div>
-        )}
-
-        {result && !loading && (
-          <div className="flex flex-col gap-4">
-            {/* Overview */}
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-              <Card className="lg:col-span-2">
-                <CardContent className="flex items-start gap-4 p-5">
-                  <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-surface-2">
-                    <ProductIcon name={result.image} className="h-7 w-7" />
-                  </span>
-                  <div className="min-w-0">
-                    <h2 className="text-lg font-semibold text-ink-primary">{result.name}</h2>
-                    <p className="text-sm text-ink-muted">{result.category}</p>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      <Badge variant={result.demand === "Alta" ? "good" : "warning"}>Demanda {result.demand}</Badge>
-                      <Badge variant={result.competition === "Baixa" ? "good" : result.competition === "Média" ? "warning" : "critical"}>
-                        Concorrência {result.competition}
-                      </Badge>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <div className="flex flex-col justify-center rounded-2xl bg-selected p-5 text-selected-foreground">
-                <p className="text-xs font-medium opacity-70">Opportunity Score</p>
-                <p className="text-4xl font-semibold">{result.opportunityScore}/100</p>
-              </div>
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {cards.map((card) => (
+                <ProductDiscoveryCard key={card.id} product={card} onRequest={request} />
+              ))}
             </div>
-
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-              <MetricTile icon={TrendingUp} label="Volume de vendas" value={`${formatCompactNumber(result.salesVolume)}/mês`} />
-              <MetricTile icon={DollarSign} label="Preço sugerido" value={formatCurrencyBRL(result.priceSuggested)} />
-              <MetricTile icon={Flame} label="Margem estimada" value={`${result.marginEstimated}%`} />
-              <MetricTile icon={Users2} label="Previsão de lucro" value={formatCurrencyBRL(result.profitForecast)} />
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-brand-ink" /> Roteiro sugerido
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <pre className="whitespace-pre-wrap rounded-xl bg-surface-2 p-4 text-sm text-ink-secondary">
-                    {result.script}
-                  </pre>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-3"
-                    onClick={() => copy(result.script, "script")}
-                  >
-                    {copied === "script" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                    {copied === "script" ? "Copiado" : "Copiar roteiro"}
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <div className="flex flex-col gap-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Legenda pronta</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="rounded-xl bg-surface-2 p-4 text-sm text-ink-secondary">{result.caption}</p>
-                    <Button variant="outline" size="sm" className="mt-3" onClick={() => copy(result.caption, "caption")}>
-                      {copied === "caption" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                      {copied === "caption" ? "Copiado" : "Copiar legenda"}
-                    </Button>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Hash className="h-4 w-4 text-brand-ink" /> Hashtags
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="flex flex-wrap gap-2">
-                    {result.hashtags.map((h) => (
-                      <Badge key={h} variant="subtle">
-                        {h}
-                      </Badge>
-                    ))}
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Vídeos virais de referência</CardTitle>
-                <p className="text-xs text-ink-muted">Formatos com maior potencial de viralização para este produto</p>
-              </CardHeader>
-              <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                {result.viralVideos.map((v) => (
-                  <div key={v.id} className="rounded-xl border border-border-hairline bg-surface-2 p-4">
-                    <div className="flex items-center justify-between">
-                      <Badge variant="subtle">{v.format}</Badge>
-                      <span className="text-xs text-ink-muted">{v.duration}</span>
-                    </div>
-                    <p className="mt-3 text-sm text-ink-primary">&quot;{v.hook}&quot;</p>
-                    <div className="mt-3 flex items-center gap-1 text-xs font-medium text-brand-ink">
-                      <Flame className="h-3 w-3" /> {v.virality}% viralidade
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Descrição otimizada</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="rounded-xl bg-surface-2 p-4 text-sm text-ink-secondary">{result.description}</p>
-              </CardContent>
-            </Card>
-          </div>
+          </>
         )}
       </div>
     </>
-  );
-}
-
-function MetricTile({ icon: Icon, label, value }: { icon: typeof TrendingUp; label: string; value: string }) {
-  return (
-    <Card className="p-4">
-      <Icon className="h-4 w-4 text-brand-ink" />
-      <p className="mt-2 text-lg font-semibold text-ink-primary">{value}</p>
-      <p className="text-xs text-ink-muted">{label}</p>
-    </Card>
   );
 }

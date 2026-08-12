@@ -19,6 +19,8 @@ import {
   FileText,
   PanelLeftClose,
   PanelLeftOpen,
+  Calculator,
+  Handshake,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -26,19 +28,36 @@ import { Badge } from "@/components/ui/badge";
 import { Logo } from "@/components/brand/logo";
 import { ProfileSwitcher, type ProfileSummary } from "@/components/layout/profile-switcher";
 
-const nav = [
+type NavItem = { href: string; label: string; icon: typeof LayoutDashboard };
+
+// A navegação é por papel. Um seller não tem "minhas parcerias" e um creator
+// não tem "meus produtos" — mostrar as duas listas para os dois faria metade
+// dos itens levar a uma tela que redireciona.
+const navSeller: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/produtos", label: "Produtos", icon: Package },
-  { href: "/dashboard/descobrir", label: "Descobrir Produtos", icon: Compass },
-  { href: "/dashboard/rankings", label: "Rankings", icon: Trophy },
-  { href: "/dashboard/influenciadores", label: "Influenciadores", icon: Users },
-  { href: "/dashboard/influenciadores-ia", label: "Influenciadores IA", icon: Bot },
+  { href: "/dashboard/calculadora", label: "Calculadora de comissão", icon: Calculator },
+  { href: "/dashboard/afiliacoes", label: "Afiliados", icon: Handshake },
+  { href: "/dashboard/influenciadores", label: "Encontrar creators", icon: Users },
+];
+
+const navCreator: NavItem[] = [
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dashboard/descobrir", label: "Descobrir produtos", icon: Compass },
+  { href: "/dashboard/minhas-afiliacoes", label: "Minhas parcerias", icon: Handshake },
   { href: "/dashboard/conteudo-ia", label: "Conteúdo IA", icon: Wand2 },
+];
+
+// Telas do protótipo antigo, que rodam sobre dado fictício. Ficam fora do menu
+// principal até migrarem para o domínio real — ver POSICIONAMENTO.md §9.
+const navLegacy: NavItem[] = [
+  { href: "/dashboard/rankings", label: "Rankings", icon: Trophy },
+  { href: "/dashboard/influenciadores-ia", label: "Influenciadores IA", icon: Bot },
   { href: "/dashboard/pagina-vendas", label: "Página de Vendas IA", icon: FileText },
   { href: "/dashboard/inteligencia-mercado", label: "Inteligência de Mercado", icon: Radar },
 ];
 
-const navSecondary = [
+const navSecondary: NavItem[] = [
   { href: "/dashboard/favoritos", label: "Favoritos", icon: Heart },
   { href: "/dashboard/configuracoes", label: "Configurações", icon: Settings },
 ];
@@ -48,9 +67,14 @@ const STORAGE_KEY = "sova:sidebar-collapsed";
 export function Sidebar({
   profiles = [],
   activeProfileId = null,
+  activeType = "SELLER",
+  showLegacy = false,
 }: {
   profiles?: ProfileSummary[];
   activeProfileId?: string | null;
+  activeType?: "SELLER" | "CREATOR";
+  /// Telas do protótipo, sobre dado fictício. Só aparecem na conta demo.
+  showLegacy?: boolean;
 }) {
   const pathname = usePathname();
   const { user } = useUser();
@@ -89,7 +113,13 @@ export function Sidebar({
     .join("")
     .toUpperCase();
 
-  const items: (typeof nav[number] | null)[] = [...nav, null, ...navSecondary];
+  const primary = activeType === "CREATOR" ? navCreator : navSeller;
+  const items: (NavItem | null)[] = [
+    ...primary,
+    ...(showLegacy ? [null, ...navLegacy] : []),
+    null,
+    ...navSecondary,
+  ];
 
   return (
     <aside
