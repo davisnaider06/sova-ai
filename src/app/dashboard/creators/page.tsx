@@ -1,16 +1,17 @@
 import Link from "next/link";
-import { Check, Clock, Package, Users } from "lucide-react";
+import { Check, Clock, Megaphone, Package, Users } from "lucide-react";
 import { Topbar } from "@/components/layout/topbar";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { MatchBreakdown, MatchScore } from "@/components/matching/match-score";
+import { prisma } from "@/lib/db";
 import { requireSellerScope } from "@/lib/session";
 import { discoverCreatorsFor, DEFAULT_OFFER_RATE } from "@/lib/discovery";
 import { formatCompactNumber, formatPercent, toCents } from "@/lib/money";
 import { cn } from "@/lib/utils";
-import { enableCreator } from "./actions";
+import { enableCreator, inviteCreatorToCampaign } from "./actions";
 
 export default async function CreatorsPage({
   searchParams,
@@ -49,6 +50,29 @@ export default async function CreatorsPage({
   const activeRates = bestExisting
     .filter((a) => a.status === "ACTIVE")
     .map((a) => Number(a.commissionRate.toString()));
+
+  // Campanha ativa que já inclui este produto. Quando existe, a busca vira
+  // também a porta de convite — que é onde o seller já está olhando para os
+  // creators certos, em vez de ter que voltar para a tela da campanha.
+  const campaignProduct = await prisma.campaignProduct.findFirst({
+    where: {
+      productId: selected.id,
+      campaign: { status: "ACTIVE", sellerProfileId: scope.sellerProfileId },
+    },
+    select: { campaign: { select: { id: true, name: true } } },
+  });
+  const campaign = campaignProduct?.campaign ?? null;
+
+  const invitedIds = campaign
+    ? new Set(
+        (
+          await prisma.campaignCreator.findMany({
+            where: { campaignId: campaign.id },
+            select: { creatorProfileId: true },
+          })
+        ).map((r) => r.creatorProfileId),
+      )
+    : new Set<string>();
 
   const creators = await discoverCreatorsFor({
     id: selected.id,
@@ -135,7 +159,7 @@ export default async function CreatorsPage({
 
                 <MatchBreakdown match={c.match} />
 
-                <div className="mt-4">
+                <div className="mt-4 flex flex-col gap-2">
                   {c.affiliationStatus === "ACTIVE" ? (
                     <Badge variant="good" className="w-full justify-center py-2">
                       <Check className="h-3.5 w-3.5" />
@@ -160,6 +184,27 @@ export default async function CreatorsPage({
                       </SubmitButton>
                     </form>
                   )}
+
+                  {campaign &&
+                    (invitedIds.has(c.creatorProfileId) ? (
+                      <Badge variant="subtle" className="w-full justify-center py-2">
+                        Convidado para {campaign.name}
+                      </Badge>
+                    ) : (
+                      <form action={inviteCreatorToCampaign}>
+                        <input type="hidden" name="campaignId" value={campaign.id} />
+                        <input type="hidden" name="creatorProfileId" value={c.creatorProfileId} />
+                        <SubmitButton
+                          className="w-full"
+                          size="sm"
+                          variant="ghost"
+                          pendingLabel="Convidando..."
+                        >
+                          <Megaphone className="h-3.5 w-3.5" />
+                          Convidar para {campaign.name}
+                        </SubmitButton>
+                      </form>
+                    ))}
                 </div>
               </Card>
             ))}
