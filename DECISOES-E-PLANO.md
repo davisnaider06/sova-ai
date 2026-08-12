@@ -378,3 +378,44 @@ Decisões tomadas na implementação, além do que estava escrito aqui:
 | `SPRINT-0-TIKTOK.md` | Discovery técnico do TikTok: Capability Matrix (§81), scopes levantados, a escolha irreversível do Partner Center e as 6 perguntas que faltam |
 | `prototype.md` | Escopo antigo e enxuto, contraditório com o Growth OS. Decisão de 11/08/2026 foi pelo Growth OS |
 | `architeture.md` | Deletado (aparece como `D` no git status) |
+
+
+
+Fiz a parte que dá pra fazer sem a conta, que era mais do que parecia. Está em SPRINT-0-TIKTOK.md, com as fontes linkadas.
+
+Antes de qualquer coisa: para e lê isto
+
+Na criação do app, a business region só pode ser definida uma vez. Não tem edição depois. E existem dois portais separados: partner.us.tiktokshop.com (empresas americanas, lojas dos EUA) e partner.tiktokshop.com (todo o resto — o seu).
+
+Entrar pelo portal errado, ou marcar a região errada, custa conta nova. Como esse é o único passo do Sprint 0 que é irreversível, ele virou a seção 1 do documento em vez de um detalhe no meio.
+
+Duas respostas que você já tem
+
+Brasil é mercado suportado. 19 países, BR entre eles, com página de documentação própria no Partner Center. Mas a pergunta útil mudou: as famílias de endpoint são iguais em todo mercado — o que varia por mercado é acesso e scopes. Então não é "o Brasil tem a API", é "o Brasil tem estes scopes".
+
+Os scopes do Login Kit estão levantados, com a tabela completa. E o dado mais informativo é o que não está nela: nenhum scope do Login Kit dá GMV, venda ou comissão. Isso confirma a separação que você já tinha desenhado — Login Kit é audiência, não comércio.
+
+O que eu achei e contradiz o plano
+
+O DECISOES-E-PLANO.md §6 diz que existem duas superfícies de OAuth. São três. Existe uma Affiliate Creator API, separada do Login Kit, em que o creator autoriza e você recebe as colaborações e a conversão dele.
+
+Isso mexe na §3.3, que você chamou de "o furo mais grave". A premissa central continua de pé — o GMV global histórico de um creator não existe em API nenhuma. Mas duas coisas atenuam o furo:
+
+1. A busca de creators do lado seller retorna GMV, keyword e demografia — sinal comercial de creators que nunca venderam pra você.
+2. A Affiliate Creator API dá dado comercial de primeira mão, com consentimento, sem depender de loja nenhuma.
+
+O matching no dia 1 pode ser melhor do que o plano assumia. O desenho de source + confidence continua necessário — é ele que deixa misturar fontes de qualidade desigual sem mentir na UI —, e nenhuma linha do schema muda: CONNECTED cobre o OAuth do creator, INFERRED cobre o sinal da busca do lado seller.
+
+Já corrigi a §6 e as pendências do plano, com a data e o motivo.
+
+O limite desta pesquisa
+
+A doc detalhada do Partner Center (/docv2) é renderizada por JavaScript e exige login — tentei por vários caminhos e só volta a casca da página. Por isso o documento marca cada item da Capability Matrix como ✅ confirmado, ⚠️ existe mas falta detalhe, ou ❓ sem informação pública, em vez de fingir precisão que eu não tenho.
+
+Sobraram 6 perguntas que só se responde logado. Elas estão na §6 do documento, já escritas para você copiar e ir respondendo — e a §7 diz o que cada resposta possível muda no código, para a ida ao Partner Center já sair com decisão, não só com informação.
+
+Nada disso bloqueia os Sprints 2 e 3. Quando você criar a conta, me traz as respostas que eu fecho a matriz.
+
+✻ Cooked for 6m 32s
+
+※ recap: Estamos construindo a Creator Commerce Platform: o Sprint 1 já está aplicado no Neon e buildando, e o Sprint 0 do TikTok está pesquisado em SPRINT-0-TIKTOK.md. Próximo passo: você criar a conta no Partner Center global, com target market BR. (disable recaps in /config)
