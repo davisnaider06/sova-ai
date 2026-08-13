@@ -31,9 +31,9 @@ function Submit({
       <div className="flex items-start justify-between gap-3">
         <h2 className="text-lg font-semibold tracking-tight text-ink-primary">{title}</h2>
         {pending ? (
-          <Loader2 className="mt-1 h-4 w-4 shrink-0 animate-spin text-brand" />
+          <Loader2 className="mt-1 h-4 w-4 shrink-0 animate-spin text-brand-ink" />
         ) : (
-          <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-ink-muted transition-transform group-hover:translate-x-0.5 group-hover:text-brand" />
+          <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-ink-muted transition-transform group-hover:translate-x-0.5 group-hover:text-brand-ink" />
         )}
       </div>
 
@@ -42,14 +42,14 @@ function Submit({
       <ul className="mt-5 flex flex-col gap-2">
         {bullets.map((b) => (
           <li key={b} className="flex items-start gap-2 text-sm text-ink-muted">
-            <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand" />
+            <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-ink" />
             {b}
           </li>
         ))}
       </ul>
 
       {owned && (
-        <span className="mt-5 text-xs font-medium text-brand">
+        <span className="mt-5 text-xs font-medium text-brand-ink">
           Você já tem este perfil — entrar com ele
         </span>
       )}

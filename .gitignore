@@ -46,3 +46,6 @@ api_keys.md
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Screenshots de revisão visual gerados pelo Chrome headless.
+.screenshots/

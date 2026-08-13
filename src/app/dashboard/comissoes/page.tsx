@@ -117,7 +117,7 @@ export default async function ComissoesPage() {
                         <td className="px-5 py-3 text-right tabular-nums text-ink-secondary">
                           {formatPercent(c.rate, 0)}
                         </td>
-                        <td className="px-5 py-3 text-right font-medium tabular-nums text-brand">
+                        <td className="px-5 py-3 text-right font-medium tabular-nums text-brand-ink">
                           {formatBRL(amountOf(c))}
                         </td>
                         <td className="px-5 py-3">
@@ -158,7 +158,7 @@ function Kpi({
       <p
         className={
           accent
-            ? "mt-2 text-2xl font-semibold tracking-tight text-brand"
+            ? "mt-2 text-2xl font-semibold tracking-tight text-brand-ink"
             : "mt-2 text-2xl font-semibold tracking-tight text-ink-primary"
         }
       >

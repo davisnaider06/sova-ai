@@ -74,6 +74,39 @@ test("folga pequena avisa que a taxa não atrai creator", () => {
   assert.equal(advice.recommendedBelowMarketFloor, true);
 });
 
+test("a taxa recomendada sempre existe como linha da escada", () => {
+  // Regressão: a escada só tinha múltiplos de 5%, então uma recomendação de
+  // 19% não aparecia destacada em lugar nenhum — a tela anunciava o número e
+  // logo abaixo mostrava uma tabela onde nada estava marcado.
+  const custos: ProductCosts = {
+    productCost: 4_800,
+    shippingCost: 1_400,
+    platformFee: 779,
+    operationalCost: 300,
+  };
+  const advice = recommendCommission(12_990, custos, {
+    minimumMargin: 0.12,
+    targetMargin: 0.25,
+  });
+
+  assert.ok(advice.recommendedRate !== null);
+  assert.ok(
+    advice.scenarios.some((s) => Math.abs(s.rate - advice.recommendedRate!) < 0.0005),
+    `recomendada ${advice.recommendedRate} não está entre ${advice.scenarios.map((s) => s.rate).join(", ")}`,
+  );
+});
+
+test("recomendada que cai num múltiplo de 5% não vira linha duplicada", () => {
+  const advice = recommendCommission(price, costs, {
+    minimumMargin: 0.1,
+    targetMargin: 0.2,
+  });
+  assert.equal(advice.recommendedRate, 0.25);
+
+  const emVinteCinco = advice.scenarios.filter((s) => Math.abs(s.rate - 0.25) < 0.0005);
+  assert.equal(emVinteCinco.length, 1);
+});
+
 test("cenários nunca passam do ponto de equilíbrio", () => {
   const advice = recommendCommission(price, costs);
   for (const s of advice.scenarios) {

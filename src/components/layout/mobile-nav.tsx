@@ -22,7 +22,7 @@ export function MobileNav({ activeType }: { activeType: ProfileType }) {
             aria-current={active ? "page" : undefined}
             className={cn(
               "flex flex-col items-center gap-1 rounded-xl px-2 py-1.5 text-[11px] font-medium",
-              active ? "text-brand" : "text-ink-muted",
+              active ? "text-brand-ink" : "text-ink-muted",
             )}
           >
             <span
@@ -42,7 +42,7 @@ export function MobileNav({ activeType }: { activeType: ProfileType }) {
         href="/dashboard/configuracoes"
         className={cn(
           "flex flex-col items-center gap-1 rounded-xl px-2 py-1.5 text-[11px] font-medium",
-          isNavItemActive("/dashboard/configuracoes", pathname) ? "text-brand" : "text-ink-muted",
+          isNavItemActive("/dashboard/configuracoes", pathname) ? "text-brand-ink" : "text-ink-muted",
         )}
       >
         <span

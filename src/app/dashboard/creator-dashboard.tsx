@@ -108,7 +108,7 @@ export function CreatorDashboard({
                         {p.orders} {p.orders === 1 ? "venda" : "vendas"}
                       </p>
                     </div>
-                    <span className="shrink-0 text-sm font-medium tabular-nums text-brand">
+                    <span className="shrink-0 text-sm font-medium tabular-nums text-brand-ink">
                       {formatBRL(p.commissionCents)}
                     </span>
                   </li>
@@ -154,7 +154,7 @@ function CompleteProfile() {
   return (
     <Card className="flex flex-wrap items-center justify-between gap-4 border-brand/40 p-5">
       <div className="flex items-start gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand/15 text-brand">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand/15 text-brand-ink">
           <Compass className="h-4 w-4" />
         </span>
         <div>

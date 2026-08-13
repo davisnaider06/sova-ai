@@ -122,7 +122,7 @@ function ProductCard({ product }: { product: ScoredProduct }) {
           <p className="text-[11px] text-ink-muted">
             Você ganha ({formatPercent(product.commissionRate, 0)})
           </p>
-          <p className="text-base font-semibold tabular-nums text-brand">
+          <p className="text-base font-semibold tabular-nums text-brand-ink">
             {formatBRL(commissionPerSale)}
           </p>
         </div>

@@ -15,7 +15,7 @@ const buttonVariants = cva(
         ghost: "bg-transparent text-ink-primary hover:bg-surface-2",
         subtle: "bg-surface-2 text-ink-primary hover:bg-surface-3",
         destructive: "bg-status-critical text-white hover:bg-status-critical/90",
-        link: "text-brand underline-offset-4 hover:underline",
+        link: "text-brand-ink underline-offset-4 hover:underline",
       },
       size: {
         default: "h-10 px-5 py-2",

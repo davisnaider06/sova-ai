@@ -38,7 +38,7 @@ export function SellerDashboard({
         {stats.pendingAffiliations > 0 && (
           <Card className="flex flex-wrap items-center justify-between gap-4 border-brand/40 p-4">
             <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand/15 text-brand">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand/15 text-brand-ink">
                 <Handshake className="h-4 w-4" />
               </span>
               <div>

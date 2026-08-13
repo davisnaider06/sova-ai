@@ -195,7 +195,7 @@ function List({ rows }: { rows: Row[] }) {
               </div>
               <div>
                 <p className="text-[11px] text-ink-muted">Por venda</p>
-                <p className="text-sm font-semibold tabular-nums text-brand">
+                <p className="text-sm font-semibold tabular-nums text-brand-ink">
                   {formatBRL(perSale)}
                 </p>
               </div>

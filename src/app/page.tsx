@@ -77,14 +77,14 @@ export default function LandingPage() {
 
         <div className="mx-auto max-w-4xl text-center">
           <Badge variant="subtle" className="mx-auto mb-6 w-fit">
-            <Sparkles className="h-3 w-3 text-brand" />
+            <Sparkles className="h-3 w-3 text-brand-ink" />
             Não vendemos software. Ensinamos como ganhar dinheiro na TikTok Shop.
           </Badge>
 
           <h1 className="text-balance text-4xl font-semibold leading-tight tracking-tight md:text-6xl">
             Cole o link do produto.
             <br />
-            <span className="text-brand">A IA devolve tudo</span> em segundos.
+            <span className="text-brand-ink">A IA devolve tudo</span> em segundos.
           </h1>
 
           <p className="mx-auto mt-6 max-w-2xl text-balance text-lg text-ink-secondary">
@@ -125,7 +125,7 @@ export default function LandingPage() {
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   {analysisSteps.map((s) => (
                     <div key={s.label} className="flex items-center gap-2 rounded-xl bg-surface-3 px-3 py-2 text-xs text-ink-secondary">
-                      <s.icon className="h-3.5 w-3.5 text-brand" />
+                      <s.icon className="h-3.5 w-3.5 text-brand-ink" />
                       {s.label}
                     </div>
                   ))}
@@ -152,7 +152,7 @@ export default function LandingPage() {
       {/* Método */}
       <section id="metodo" className="border-t border-border-hairline bg-surface-0 px-6 py-20">
         <div className="mx-auto max-w-5xl text-center">
-          <p className="text-sm font-medium text-brand">O método</p>
+          <p className="text-sm font-medium text-brand-ink">O método</p>
           <h2 className="mt-2 text-3xl font-semibold tracking-tight md:text-4xl">
             Menos &quot;compra meu sistema&quot;. Mais prova, conteúdo e comunidade.
           </h2>
@@ -165,7 +165,7 @@ export default function LandingPage() {
             {flow.map((step, i) => (
               <div key={step.label} className="flex items-center gap-2">
                 <div className="flex flex-col items-center gap-2 rounded-2xl border border-border-hairline bg-surface-1 px-5 py-4">
-                  <step.icon className="h-5 w-5 text-brand" />
+                  <step.icon className="h-5 w-5 text-brand-ink" />
                   <span className="text-sm font-medium text-ink-primary">{step.label}</span>
                 </div>
                 {i < flow.length - 1 && (
@@ -181,7 +181,7 @@ export default function LandingPage() {
       <section id="ecossistema" className="px-6 py-20">
         <div className="mx-auto max-w-6xl">
           <div className="text-center">
-            <p className="text-sm font-medium text-brand">O ecossistema</p>
+            <p className="text-sm font-medium text-brand-ink">O ecossistema</p>
             <h2 className="mt-2 text-3xl font-semibold tracking-tight md:text-4xl">
               Um ecossistema, não um produto solto
             </h2>
@@ -191,7 +191,7 @@ export default function LandingPage() {
             {ecosystem.map((item) => (
               <Card key={item.title} className="p-5">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand/15">
-                  <item.icon className="h-5 w-5 text-brand" />
+                  <item.icon className="h-5 w-5 text-brand-ink" />
                 </div>
                 <h3 className="mt-4 text-sm font-semibold text-ink-primary">{item.title}</h3>
                 <p className="mt-1.5 text-sm text-ink-muted">{item.description}</p>
@@ -205,7 +205,7 @@ export default function LandingPage() {
       <section id="planos" className="border-t border-border-hairline bg-surface-0 px-6 py-20">
         <div className="mx-auto max-w-6xl">
           <div className="text-center">
-            <p className="text-sm font-medium text-brand">Planos</p>
+            <p className="text-sm font-medium text-brand-ink">Planos</p>
             <h2 className="mt-2 text-3xl font-semibold tracking-tight md:text-4xl">
               Comece agora com o preço de lançamento
             </h2>
@@ -236,7 +236,7 @@ export default function LandingPage() {
                 <ul className="mt-6 space-y-3">
                   {plan.features.map((f) => (
                     <li key={f} className="flex items-start gap-2 text-sm text-ink-secondary">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-ink" />
                       {f}
                     </li>
                   ))}

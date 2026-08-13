@@ -20,7 +20,7 @@ export function ContentForm({ products }: { products: AffiliatedProduct[] }) {
   return (
     <Card className="p-5">
       <div className="flex items-center gap-2">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand/15 text-brand">
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand/15 text-brand-ink">
           <Plus className="h-4 w-4" />
         </span>
         <div>

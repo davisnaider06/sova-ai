@@ -151,7 +151,7 @@ export function recommendCommission(
     recommendedBelowMarketFloor:
       recommendedRate !== null && recommendedRate < ATTRACTIVE_RATE_FLOOR,
     impossible,
-    scenarios: buildScenarios(priceCents, costs, minimumMargin, breakEven),
+    scenarios: buildScenarios(priceCents, costs, minimumMargin, breakEven, recommendedRate),
   };
 }
 
@@ -162,6 +162,7 @@ function buildScenarios(
   costs: ProductCosts,
   minimumMargin: number,
   breakEven: number,
+  recommendedRate: number | null,
 ): CommissionScenario[] {
   if (priceCents <= 0) return [];
 
@@ -169,11 +170,23 @@ function buildScenarios(
   const rates: number[] = [];
   for (let r = 0.05; r <= ceiling + 1e-9; r += 0.05) rates.push(round4(r));
 
+  const has = (value: number) => rates.some((r) => Math.abs(r - value) < 0.0005);
+
+  // A taxa recomendada entra como degrau próprio.
+  //
+  // Sem isso a escada só tem múltiplos de 5%, e uma recomendação de 19% não
+  // aparece marcada em lugar nenhum: a tela anuncia "recomendada: 19%" e logo
+  // abaixo mostra uma tabela onde nada está destacado. O número mais importante
+  // da calculadora ficava sendo o único que não dava para conferir na linha.
+  if (recommendedRate !== null && recommendedRate > 0 && !has(recommendedRate)) {
+    rates.push(recommendedRate);
+  }
+
   // Sempre inclui o ponto de equilíbrio arredondado, para o teto ficar visível
   // mesmo quando ele cai entre dois degraus da escada.
   if (breakEven > 0 && breakEven < TYPICAL_RATE_CEILING) {
     const be = round4(breakEven);
-    if (!rates.some((r) => Math.abs(r - be) < 0.005)) rates.push(be);
+    if (!has(be)) rates.push(be);
   }
 
   rates.sort((a, b) => a - b);

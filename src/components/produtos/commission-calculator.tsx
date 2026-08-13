@@ -178,9 +178,12 @@ export function CommissionCalculator({
             </thead>
             <tbody>
               {advice.scenarios.map((s) => {
+                // A taxa recomendada é um degrau próprio da escada (ver
+                // buildScenarios), então a comparação é por igualdade — com
+                // folga só para o ruído do ponto flutuante.
                 const isRecommended =
                   advice.recommendedRate !== null &&
-                  Math.abs(s.rate - advice.recommendedRate) < 0.005;
+                  Math.abs(s.rate - advice.recommendedRate) < 0.0005;
                 return (
                   <tr
                     key={s.rate}
@@ -235,7 +238,7 @@ export function CommissionCalculator({
 function SectionTitle() {
   return (
     <div className="flex items-center gap-2">
-      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand/15 text-brand">
+      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand/15 text-brand-ink">
         <TrendingUp className="h-4 w-4" />
       </span>
       <div>

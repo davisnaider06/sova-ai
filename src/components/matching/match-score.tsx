@@ -51,14 +51,18 @@ export function MatchScore({
 export function MatchBreakdown({ match }: { match: MatchResult }) {
   const conf = CONFIDENCE_STYLE[match.confidenceLevel];
 
+  // Sem caixa fechada em volta do resumo, de propósito: com borda e chevron ele
+  // lia como um <select>, e num cartão que já tem um botão primário logo abaixo
+  // isso dá duas coisas parecidas com controle disputando a atenção. Aqui o
+  // resumo é texto com um chevron — a explicação, não uma escolha.
   return (
-    <details className="group mt-3 rounded-xl bg-surface-2 px-3.5 py-2.5">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-xs text-ink-secondary [&::-webkit-details-marker]:hidden">
+    <details className="group mt-3 border-t border-border-hairline pt-2.5">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-xs text-ink-muted transition-colors hover:text-ink-secondary [&::-webkit-details-marker]:hidden">
         <span className="min-w-0 flex-1 truncate">{match.headline}</span>
-        <ChevronDown className="h-3.5 w-3.5 shrink-0 text-ink-muted transition-transform group-open:rotate-180" />
+        <ChevronDown className="h-3.5 w-3.5 shrink-0 transition-transform group-open:rotate-180" />
       </summary>
 
-      <div className="mt-3 flex flex-col gap-2.5">
+      <div className="mt-3 flex flex-col gap-2.5 rounded-xl bg-surface-2 px-3.5 py-3">
         {match.components.map((c) => (
           <div key={c.key}>
             <div className="flex items-baseline justify-between gap-3 text-[11px]">

@@ -11,6 +11,12 @@
   --brand-strong: #aad11a;
   --brand-foreground: #0b0d05;
 
+  /* Brand as TEXT on a surface — não é o mesmo que --brand.
+     O lime foi desenhado como fundo com tinta escura por cima; usado como cor
+     de texto sobre superfície clara ele dá ~1,4:1 de contraste, e é justamente
+     onde vai o número que mais importa para o creator ("você ganha R$ ..."). */
+  --brand-ink: #4f6300;
+
   /* Surfaces (page plane, opaque chrome) */
   --page: #eef0e6;
   --surface-0: #f5f6f0;
@@ -79,6 +85,10 @@
 .dark {
   color-scheme: dark;
 
+  /* No escuro o lime já tem contraste de sobra sobre a superfície, então a
+     tinta de marca volta a ser a própria cor da marca. */
+  --brand-ink: #c2ea22;
+
   --page: #0a0a0b;
   --surface-0: #131316;
   --surface-inverse: #f4f5ef;
@@ -126,6 +136,7 @@
   --color-brand: var(--brand);
   --color-brand-strong: var(--brand-strong);
   --color-brand-foreground: var(--brand-foreground);
+  --color-brand-ink: var(--brand-ink);
 
   --color-border-hairline: var(--border-hairline);
   --color-border-strong: var(--border-strong);

@@ -39,7 +39,7 @@ export function StatCard({
         <span
           className={cn(
             "flex h-8 w-8 items-center justify-center rounded-lg",
-            accent ? "bg-brand/15 text-brand" : "bg-surface-2 text-ink-secondary",
+            accent ? "bg-brand/15 text-brand-ink" : "bg-surface-2 text-ink-secondary",
           )}
         >
           <Icon className="h-4 w-4" />

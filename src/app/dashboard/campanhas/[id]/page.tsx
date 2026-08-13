@@ -129,7 +129,7 @@ export default async function CampanhaPage({
                 </p>
                 <Link
                   href="/dashboard/creators"
-                  className="mt-4 text-sm font-medium text-brand underline-offset-4 hover:underline"
+                  className="mt-4 text-sm font-medium text-brand-ink underline-offset-4 hover:underline"
                 >
                   Encontrar creators
                 </Link>

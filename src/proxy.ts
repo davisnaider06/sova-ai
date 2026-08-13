@@ -30,7 +30,11 @@ export default clerkMiddleware();
 
 export const config = {
   matcher: [
-    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    // `/preview` fica de fora: é a galeria de componentes de desenvolvimento,
+    // não lê dado nenhum, e passar por aqui faria o Clerk desviar o primeiro
+    // acesso para o handshake de dev-browser — que um navegador headless não
+    // tem como completar, tornando a rota inútil para revisar o visual.
+    "/((?!_next|preview|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
     "/(api|trpc)(.*)",
   ],
 };

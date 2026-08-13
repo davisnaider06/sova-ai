@@ -90,7 +90,7 @@ export function Sidebar({
         <div className="mt-3 flex items-center gap-2.5">
           <Avatar>
             <AvatarImage src={user?.imageUrl} alt={name} />
-            <AvatarFallback className="bg-brand/15 text-brand">{initials}</AvatarFallback>
+            <AvatarFallback className="bg-brand/15 text-brand-ink">{initials}</AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium text-ink-primary">{name}</p>
