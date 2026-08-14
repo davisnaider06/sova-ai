@@ -57,7 +57,6 @@ const SELLER: NavSection[] = [
   {
     title: "Ferramentas IA",
     items: [
-      { href: "/dashboard/conteudo-ia", label: "Conteúdo IA", icon: Bot },
       { href: "/dashboard/pagina-vendas", label: "Página de vendas", icon: FileText },
       { href: "/dashboard/inteligencia-mercado", label: "Inteligência de mercado", icon: Radar },
     ],
@@ -72,6 +71,7 @@ const CREATOR: NavSection[] = [
       { href: "/dashboard/minhas-afiliacoes", label: "Minhas afiliações", icon: Handshake, mobile: true },
       { href: "/dashboard/campanhas", label: "Campanhas", icon: Megaphone },
       { href: "/dashboard/conteudo", label: "Meu conteúdo", icon: Video },
+      { href: "/dashboard/conteudo-ia", label: "Assistente de conteúdo", icon: Bot },
       { href: "/dashboard/desempenho", label: "Desempenho", icon: BarChart3 },
       { href: "/dashboard/comissoes", label: "Comissões", icon: Wallet, mobile: true },
     ],

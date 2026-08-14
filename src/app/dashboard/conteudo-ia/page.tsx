@@ -1,157 +1,71 @@
-"use client";
-
-import { useRef, useState } from "react";
-import { ImagePlus, Sparkles, Clapperboard, Mic, Hash, MessageSquareQuote, Copy, Check } from "lucide-react";
+import { KeyRound, Video } from "lucide-react";
 import { Topbar } from "@/components/layout/topbar";
-import { PrototypeNotice } from "@/components/ui/prototype-notice";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { prisma } from "@/lib/db";
+import { requireCreatorScope } from "@/lib/session";
+import { isAiConfigured } from "@/lib/ai/client";
+import { ScriptGenerator } from "./script-generator";
 
-const scenes = [
-  { title: "Cena 1 — Gancho", detail: "Close no problema do dia a dia em 2s, texto na tela chamando atenção." },
-  { title: "Cena 2 — Unboxing", detail: "Abertura do produto com reação genuína, destaque no detalhe premium." },
-  { title: "Cena 3 — Demonstração", detail: "Uso real do produto resolvendo o problema mostrado no gancho." },
-  { title: "Cena 4 — Resultado", detail: "Antes/depois ou reação final + prova social (avaliação, print de comentário)." },
-];
+// §39 — Assistente de conteúdo do creator.
+//
+// Depois da afiliação vem a pergunta "e agora, como eu divulgo isso?". Esta
+// tela responde com um roteiro gravável, escrito a partir do produto real, da
+// comissão real e dos nichos declarados pelo creator.
+export default async function ConteudoIaPage() {
+  const { scope } = await requireCreatorScope();
 
-const narration =
-  "Tom: animado e próximo. Ritmo: rápido nos primeiros 3s, desacelera na demonstração. Trilha sugerida: som em alta no TikTok Shop dessa semana.";
+  const affiliations = await prisma.affiliation.findMany({
+    where: { creatorProfileId: scope.creatorProfileId, status: "ACTIVE" },
+    orderBy: { updatedAt: "desc" },
+    select: {
+      product: { select: { id: true, name: true, category: true } },
+    },
+  });
 
-export default function ConteudoIaPage() {
-  const [preview, setPreview] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [ready, setReady] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setPreview(URL.createObjectURL(file));
-    setReady(false);
-  }
-
-  function generate() {
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      setReady(true);
-    }, 1600);
-  }
-
-  const caption = "Achei esse produto e minha vida mudou, corre que a promoção é por tempo limitado #tiktokshop";
-  const cta = "Toca no link da vitrine antes que esgote de novo";
+  const products = affiliations.map((a) => a.product);
+  const configured = isAiConfigured();
 
   return (
     <>
-      <Topbar title="Conteúdo IA" subtitle="Envie a foto do produto e receba um vídeo pronto para gravar" />
+      <Topbar
+        title="Assistente de conteúdo"
+        subtitle="Roteiro de vídeo para os produtos que você promove"
+      />
 
       <div className="flex flex-col gap-6 p-6">
-        <PrototypeNotice what="A geração de roteiro ainda não está ligada a um modelo de IA." />
-        <Card>
-          <CardContent className="flex flex-col items-center gap-4 p-8 text-center">
-            <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
-            {preview ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={preview} alt="Produto enviado" className="h-40 w-40 rounded-2xl object-cover" />
-            ) : (
-              <div
-                onClick={() => inputRef.current?.click()}
-                className="flex h-40 w-40 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-border-strong text-ink-muted transition-colors hover:border-brand hover:text-brand-ink"
-              >
-                <ImagePlus className="h-8 w-8" />
-                <span className="text-xs">Enviar foto</span>
-              </div>
-            )}
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => inputRef.current?.click()}>
-                {preview ? "Trocar foto" : "Escolher foto do produto"}
-              </Button>
-              <Button onClick={generate} disabled={!preview || loading}>
-                {loading ? "Gerando..." : "Gerar vídeo com IA"} <Sparkles className="h-4 w-4" />
-              </Button>
+        {/* Sem chave, a tela diz que está sem chave. A alternativa — mostrar um
+            roteiro de exemplo — é a mentira que o §79 proíbe, e a pior possível
+            aqui: o creator publicaria achando que a IA escreveu. */}
+        {!configured && (
+          <Card className="flex items-start gap-3 border-status-warning/30 p-5">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-status-warning/15 text-status-warning">
+              <KeyRound className="h-4 w-4" />
+            </span>
+            <div>
+              <p className="text-sm font-medium text-ink-primary">
+                Geração por IA ainda não configurada
+              </p>
+              <p className="mt-1 max-w-2xl text-sm text-ink-muted">
+                Falta a variável <code className="text-ink-secondary">ANTHROPIC_API_KEY</code>{" "}
+                no ambiente. A chave sai do console.anthropic.com e é cobrada por uso —
+                assinatura do Claude.ai não dá acesso à API. O formulário abaixo continua
+                visível para você conferir o fluxo, mas a geração vai falhar até a chave
+                existir.
+              </p>
             </div>
-          </CardContent>
-        </Card>
-
-        {loading && (
-          <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-border-hairline bg-surface-1 py-16 text-center">
-            <Sparkles className="h-6 w-6 animate-pulse text-brand-ink" />
-            <p className="text-sm text-ink-secondary">Criando roteiro, cenas, legenda e narração...</p>
-          </div>
+          </Card>
         )}
 
-        {ready && !loading && (
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Clapperboard className="h-4 w-4 text-brand-ink" /> Roteiro por cenas
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {scenes.map((s) => (
-                  <div key={s.title} className="rounded-xl bg-surface-2 p-3">
-                    <p className="text-sm font-medium text-ink-primary">{s.title}</p>
-                    <p className="mt-0.5 text-xs text-ink-muted">{s.detail}</p>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-
-            <div className="flex flex-col gap-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <MessageSquareQuote className="h-4 w-4 text-brand-ink" /> Legenda & CTA
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <p className="rounded-xl bg-surface-2 p-3 text-sm text-ink-secondary">{caption}</p>
-                  <p className="rounded-xl bg-brand/10 p-3 text-sm font-medium text-brand-ink">{cta}</p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      navigator.clipboard?.writeText(`${caption}\n\n${cta}`);
-                      setCopied(true);
-                      setTimeout(() => setCopied(false), 1500);
-                    }}
-                  >
-                    {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                    {copied ? "Copiado" : "Copiar tudo"}
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Mic className="h-4 w-4 text-brand-ink" /> Narração
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="rounded-xl bg-surface-2 p-3 text-sm text-ink-secondary">{narration}</p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Hash className="h-4 w-4 text-brand-ink" /> Hashtags
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="flex flex-wrap gap-2">
-                  {["#tiktokshop", "#achadinhos", "#tiktokmademebuyit", "#viralvideo"].map((h) => (
-                    <Badge key={h} variant="subtle">
-                      {h}
-                    </Badge>
-                  ))}
-                </CardContent>
-              </Card>
-            </div>
-          </div>
+        {products.length === 0 ? (
+          <EmptyState
+            icon={Video}
+            title="Você precisa de uma afiliação ativa"
+            description="O roteiro é escrito a partir de um produto que você promove — com o preço, a categoria e a comissão reais. Peça a afiliação na descoberta e volte aqui."
+            action={{ href: "/dashboard/descobrir", label: "Descobrir produtos" }}
+          />
+        ) : (
+          <ScriptGenerator products={products} />
         )}
       </div>
     </>
