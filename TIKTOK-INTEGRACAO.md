@@ -38,8 +38,24 @@ fora do alcance. Ver §12 do documento de pesquisa.
    `/v2/user/info/` e `/v2/video/list/`.
 4. Em Login Kit, cadastre a **Redirect URI**. Precisa bater exatamente com
    `TIKTOK_REDIRECT_URI`, incluindo esquema e barra final:
-   - desenvolvimento: `http://localhost:3000/api/tiktok/callback`
-   - produção: `https://SEU-DOMINIO/api/tiktok/callback`
+
+   ```
+   https://sova-ai-t3ma.vercel.app/api/tiktok/callback
+   ```
+
+   > ⚠️ **`localhost` não funciona aqui.** Para plataforma **Web** a doc oficial
+   > exige URI absoluta começando em `https`, sem parâmetro dinâmico e sem
+   > fragmento — `http://localhost:3000/...` é recusado no cadastro. A permissão
+   > de `localhost`/`http` existe só para a plataforma **Desktop**, que não é o
+   > nosso caso. Para testar na sua máquina, use um túnel HTTPS (ngrok, Cloudflare
+   > Tunnel) e cadastre a URL do túnel como uma redirect URI adicional — cabem até
+   > 10 por app, com no máximo 512 caracteres cada.
+
+   > O projeto de produção na Vercel é **`sova-ai-t3ma`**. Existe um segundo
+   > projeto, `sova-ai` (`sova-ai-nine.vercel.app`), parado num deploy antigo e
+   > sem esta integração — não é o ambiente de produção e não deve receber a
+   > redirect URI. Quando houver domínio próprio, esta URL muda no painel do
+   > TikTok **e** em `TIKTOK_REDIRECT_URI`, nos dois lugares.
 5. Solicite os scopes da §4.
 6. Copie **Client Key** e **Client Secret** para o `.env.local`.
 
@@ -57,6 +73,17 @@ TOKEN_ENCRYPTION_KEY="..."
 Sem `TOKEN_ENCRYPTION_KEY` o botão de conectar é bloqueado **antes** de o
 usuário autorizar — gravar token de terceiro em claro não é opção. Trocar a
 chave depois invalida os tokens guardados e força reconexão.
+
+### Estado da configuração (14/08/2026)
+
+| Variável | `.env.local` | Produção (Vercel) |
+|---|---|---|
+| `TOKEN_ENCRYPTION_KEY` | ✅ gerada | ⬜ **falta cadastrar** |
+| `TIKTOK_CLIENT_KEY` / `_SECRET` / `_REDIRECT_URI` | ⬜ | ⬜ depende de criar a app |
+
+Enquanto as três variáveis do TikTok não existirem, `getTikTokConfig()` devolve
+`null`, o card aparece como "não configurada" e o botão fica desabilitado. É o
+comportamento desejado: a integração ausente não derruba nada do resto do SaaS.
 
 ## 4. Scopes pedidos
 
