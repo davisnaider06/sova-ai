@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { Check, Clock, Package, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -12,9 +13,21 @@ import { cn } from "@/lib/utils";
 import type { ScoredProduct } from "@/lib/discovery";
 import { requestAffiliation } from "./actions";
 
+const SORTS = [
+  { key: "match", label: "Compatibilidade" },
+  { key: "commission", label: "Você ganha mais" },
+  { key: "rate", label: "Maior comissão" },
+  { key: "price", label: "Menor preço" },
+] as const;
+
+type SortKey = (typeof SORTS)[number]["key"];
+
 export function DiscoverList({ products }: { products: ScoredProduct[] }) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("Todas");
+  const [sort, setSort] = useState<SortKey>("match");
+  const [minRate, setMinRate] = useState(0);
+  const [onlyGoodMatch, setOnlyGoodMatch] = useState(false);
 
   const categories = useMemo(
     () => ["Todas", ...Array.from(new Set(products.map((p) => p.category))).sort()],
@@ -23,15 +36,39 @@ export function DiscoverList({ products }: { products: ScoredProduct[] }) {
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    return products.filter((p) => {
+
+    const list = products.filter((p) => {
       const matchesCategory = category === "Todas" || p.category === category;
       const matchesQuery =
         needle === "" ||
         p.name.toLowerCase().includes(needle) ||
         p.sellerName.toLowerCase().includes(needle);
-      return matchesCategory && matchesQuery;
+      const matchesRate = p.commissionRate * 100 >= minRate;
+      const matchesScore = !onlyGoodMatch || p.match.score >= 70;
+      return matchesCategory && matchesQuery && matchesRate && matchesScore;
     });
-  }, [products, query, category]);
+
+    // A ordenação padrão é por compatibilidade porque é a promessa da tela.
+    // As outras existem porque "quanto eu ganho" é uma pergunta legítima e
+    // diferente de "o que combina comigo".
+    const sorted = [...list];
+    switch (sort) {
+      case "commission":
+        sorted.sort(
+          (a, b) => b.priceCents * b.commissionRate - a.priceCents * a.commissionRate,
+        );
+        break;
+      case "rate":
+        sorted.sort((a, b) => b.commissionRate - a.commissionRate);
+        break;
+      case "price":
+        sorted.sort((a, b) => a.priceCents - b.priceCents);
+        break;
+      default:
+        sorted.sort((a, b) => b.match.score - a.match.score);
+    }
+    return sorted;
+  }, [products, query, category, sort, minRate, onlyGoodMatch]);
 
   return (
     <div className="flex flex-col gap-5">
@@ -61,6 +98,51 @@ export function DiscoverList({ products }: { products: ScoredProduct[] }) {
             </button>
           ))}
         </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-3 rounded-2xl bg-surface-2 px-4 py-3">
+        <label className="flex items-center gap-2 text-xs text-ink-secondary">
+          Ordenar por
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as SortKey)}
+            className="rounded-lg border border-border-strong bg-surface-3 px-2.5 py-1.5 text-xs text-ink-primary outline-none focus-visible:border-brand"
+          >
+            {SORTS.map((s) => (
+              <option key={s.key} value={s.key}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="flex items-center gap-2 text-xs text-ink-secondary">
+          Comissão mínima
+          <input
+            type="range"
+            min={0}
+            max={40}
+            step={5}
+            value={minRate}
+            onChange={(e) => setMinRate(Number(e.target.value))}
+            className="h-1.5 w-28 cursor-pointer appearance-none rounded-full bg-border-strong accent-brand"
+          />
+          <span className="w-9 tabular-nums text-ink-primary">{minRate}%</span>
+        </label>
+
+        <label className="flex cursor-pointer items-center gap-2 text-xs text-ink-secondary">
+          <input
+            type="checkbox"
+            checked={onlyGoodMatch}
+            onChange={(e) => setOnlyGoodMatch(e.target.checked)}
+            className="h-3.5 w-3.5 accent-brand"
+          />
+          Só match alto (70+)
+        </label>
+
+        <span className="ml-auto text-xs text-ink-muted">
+          {filtered.length} de {products.length}
+        </span>
       </div>
 
       {filtered.length === 0 ? (
@@ -99,7 +181,12 @@ function ProductCard({ product }: { product: ScoredProduct }) {
         </span>
 
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-ink-primary">{product.name}</p>
+          <Link
+            href={`/dashboard/descobrir/${product.id}`}
+            className="truncate text-sm font-medium text-ink-primary underline-offset-2 hover:underline"
+          >
+            {product.name}
+          </Link>
           <p className="mt-0.5 truncate text-xs text-ink-muted">
             {product.sellerName} · {product.category}
           </p>

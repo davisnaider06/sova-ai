@@ -2,6 +2,7 @@ import "server-only";
 
 import { prisma } from "@/lib/db";
 import { toCents } from "@/lib/money";
+import { loadSellerProfit, loadTopCreators } from "@/lib/campaign-metrics";
 import { OrderStatus, type Prisma } from "@/generated/prisma";
 
 // ---------------------------------------------------------------------------
@@ -36,8 +37,20 @@ export type SellerStats = {
   pendingAffiliations: number;
   commissionsToPayCents: number;
   attributedShare: number | null;
+  /// Null quando algum produto vendido não tem custos cadastrados — meio lucro
+  /// é pior que lucro nenhum, porque o seller acredita no número.
+  estimatedProfitCents: number | null;
+  /// GMV ÷ comissões pagas. "Para cada R$ 1 de comissão, quanto entrou."
+  roi: number | null;
   series: Array<{ label: string; value: number }>;
   topProducts: Array<{ id: string; name: string; gmvCents: number; orders: number }>;
+  topCreators: Array<{
+    creatorProfileId: string;
+    name: string;
+    gmvCents: number;
+    orders: number;
+    commissionCents: number;
+  }>;
 };
 
 export async function loadSellerStats(
@@ -48,8 +61,16 @@ export async function loadSellerStats(
   const since = new Date(now.getTime() - days * DAY_MS);
   const previousSince = new Date(now.getTime() - 2 * days * DAY_MS);
 
-  const [current, previous, activeProducts, activeCreators, pendingAffiliations, commissions] =
-    await Promise.all([
+  const [
+    current,
+    previous,
+    activeProducts,
+    activeCreators,
+    pendingAffiliations,
+    commissions,
+    profit,
+    topCreators,
+  ] = await Promise.all([
       prisma.order.findMany({
         where: { sellerProfileId, placedAt: { gte: since }, orderStatus: REALIZED },
         select: {
@@ -90,6 +111,8 @@ export async function loadSellerStats(
         },
         select: { estimatedAmount: true, finalAmount: true },
       }),
+      loadSellerProfit(sellerProfileId, since),
+      loadTopCreators(sellerProfileId, since),
     ]);
 
   const gmvCents = current.reduce((acc, o) => acc + toCents(o.totalAmount), 0);
@@ -126,6 +149,9 @@ export async function loadSellerStats(
       0,
     ),
     attributedShare: current.length > 0 ? attributedCount / current.length : null,
+    estimatedProfitCents: profit.estimatedProfitCents,
+    roi: profit.roi,
+    topCreators,
     series: buildSeries(
       current.map((o) => ({ at: o.placedAt, cents: toCents(o.totalAmount) })),
       since,

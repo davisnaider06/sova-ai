@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   ArrowRight,
+  Coins,
   Handshake,
   Package,
   Receipt,
@@ -64,7 +65,7 @@ export function SellerDashboard({
 
         {!hasProducts && <FirstStep />}
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           <StatCard
             label="GMV"
             value={formatBRLCompact(stats.gmvCents)}
@@ -97,10 +98,27 @@ export function SellerDashboard({
             href="/dashboard/afiliacoes"
           />
           <StatCard
+            label="Lucro estimado"
+            value={
+              stats.estimatedProfitCents !== null
+                ? formatBRLCompact(stats.estimatedProfitCents)
+                : "—"
+            }
+            hint={
+              stats.estimatedProfitCents !== null
+                ? stats.roi !== null
+                  ? `ROI ${stats.roi.toFixed(1).replace(".", ",")}x sobre comissões`
+                  : "Depois de custos e comissões"
+                : "Informe os custos dos produtos"
+            }
+            icon={Coins}
+          />
+          <StatCard
             label="Comissões a pagar"
             value={formatBRL(stats.commissionsToPayCents)}
             hint="Aprovadas e pendentes"
             icon={Wallet}
+            href="/dashboard/comissoes"
           />
         </div>
 
@@ -123,38 +141,72 @@ export function SellerDashboard({
             </div>
           </Card>
 
-          <Card className="flex flex-col p-5">
-            <p className="text-sm font-medium text-ink-primary">Produtos que mais venderam</p>
-            {stats.topProducts.length === 0 ? (
-              <p className="mt-4 text-sm text-ink-muted">
-                Sem vendas no período. Assim que houver, o ranking aparece aqui.
-              </p>
-            ) : (
-              <ul className="mt-4 flex flex-col gap-3">
-                {stats.topProducts.map((p, i) => (
-                  <li key={p.id}>
-                    <Link
-                      href={`/dashboard/produtos/${p.id}`}
-                      className="flex items-center gap-3 rounded-xl p-2 transition-colors hover:bg-surface-2"
-                    >
+          <div className="flex flex-col gap-4">
+            {/* Melhores creators vem antes de produtos: o §40 é explícito que
+                é isso que o seller precisa ver depois dos números — quem está
+                gerando a receita, para investir mais naquela relação. */}
+            <Card className="flex flex-col p-5">
+              <p className="text-sm font-medium text-ink-primary">Melhores creators</p>
+              {stats.topCreators.length === 0 ? (
+                <p className="mt-4 text-sm text-ink-muted">
+                  Nenhuma venda atribuída a creator no período.
+                </p>
+              ) : (
+                <ul className="mt-4 flex flex-col gap-3">
+                  {stats.topCreators.map((c, i) => (
+                    <li key={c.creatorProfileId} className="flex items-center gap-3">
                       <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-xs font-semibold text-ink-secondary">
                         {i + 1}
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm text-ink-primary">{p.name}</p>
+                        <p className="truncate text-sm text-ink-primary">{c.name}</p>
                         <p className="text-xs text-ink-muted">
-                          {p.orders} {p.orders === 1 ? "item vendido" : "itens vendidos"}
+                          {c.orders} {c.orders === 1 ? "venda" : "vendas"} ·{" "}
+                          {formatBRLCompact(c.commissionCents)} de comissão
                         </p>
                       </div>
                       <span className="shrink-0 text-sm font-medium tabular-nums text-ink-primary">
-                        {formatBRLCompact(p.gmvCents)}
+                        {formatBRLCompact(c.gmvCents)}
                       </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+
+            <Card className="flex flex-col p-5">
+              <p className="text-sm font-medium text-ink-primary">Produtos que mais venderam</p>
+              {stats.topProducts.length === 0 ? (
+                <p className="mt-4 text-sm text-ink-muted">
+                  Sem vendas no período. Assim que houver, o ranking aparece aqui.
+                </p>
+              ) : (
+                <ul className="mt-4 flex flex-col gap-3">
+                  {stats.topProducts.map((p, i) => (
+                    <li key={p.id}>
+                      <Link
+                        href={`/dashboard/produtos/${p.id}`}
+                        className="flex items-center gap-3 rounded-xl p-2 transition-colors hover:bg-surface-2"
+                      >
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-xs font-semibold text-ink-secondary">
+                          {i + 1}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm text-ink-primary">{p.name}</p>
+                          <p className="text-xs text-ink-muted">
+                            {p.orders} {p.orders === 1 ? "item vendido" : "itens vendidos"}
+                          </p>
+                        </div>
+                        <span className="shrink-0 text-sm font-medium tabular-nums text-ink-primary">
+                          {formatBRLCompact(p.gmvCents)}
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+          </div>
         </div>
       </div>
     </>

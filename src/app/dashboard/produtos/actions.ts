@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { requireSellerScope } from "@/lib/session";
 import { CATEGORIES } from "@/lib/categories";
 import { Validator, fail, succeed, type ActionState } from "@/lib/form";
+import { recordAudit } from "@/lib/audit";
 import { toDecimalString } from "@/lib/money";
 import { ProductStatus } from "@/generated/prisma";
 
@@ -35,7 +36,7 @@ export async function createProduct(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const { scope, common } = await requireSellerScope();
+  const { scope, common, profile } = await requireSellerScope();
   const { v, data } = readProductForm(formData);
 
   // Preço zero passaria na validação de "obrigatório" (0 é um número), mas
@@ -62,6 +63,14 @@ export async function createProduct(
     entityId: product.id,
     metadata: { category: data.category },
   });
+  await recordAudit({
+    userId: profile.userId,
+    profileId: profile.id,
+    action: "PRODUCT_CREATED",
+    entityType: "Product",
+    entityId: product.id,
+    metadata: { name: data.name, category: data.category },
+  });
 
   revalidatePath("/dashboard/produtos");
   redirect(`/dashboard/produtos/${product.id}`);
@@ -71,7 +80,7 @@ export async function updateProduct(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const { scope } = await requireSellerScope();
+  const { scope, profile } = await requireSellerScope();
   const { v, data } = readProductForm(formData);
   const id = v.id("id", "Produto");
 
@@ -94,6 +103,15 @@ export async function updateProduct(
   // saber qual dos dois. É o comportamento desenhado no scoped-db.
   if (count === 0) return fail({}, "Produto não encontrado.");
 
+  await recordAudit({
+    userId: profile.userId,
+    profileId: profile.id,
+    action: "PRODUCT_UPDATED",
+    entityType: "Product",
+    entityId: id,
+    metadata: { name: data.name },
+  });
+
   revalidatePath("/dashboard/produtos");
   revalidatePath(`/dashboard/produtos/${id}`);
   return succeed("Produto salvo.");
@@ -105,7 +123,7 @@ export async function saveEconomics(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const { scope } = await requireSellerScope();
+  const { scope, profile } = await requireSellerScope();
   const v = new Validator(formData);
 
   const productId = v.id("productId", "Produto");
@@ -136,6 +154,17 @@ export async function saveEconomics(
 
   if (!saved) return fail({}, "Produto não encontrado.");
 
+  // Custo muda a comissão recomendada, que muda o que o creator recebe.
+  // É das mudanças que mais vale poder rastrear depois.
+  await recordAudit({
+    userId: profile.userId,
+    profileId: profile.id,
+    action: "PRODUCT_ECONOMICS_CHANGED",
+    entityType: "Product",
+    entityId: productId,
+    metadata: { productCost, shippingCost, platformFee, operationalCost },
+  });
+
   revalidatePath(`/dashboard/produtos/${productId}`);
   return succeed("Custos salvos.");
 }
@@ -159,13 +188,20 @@ export async function setProductStatus(formData: FormData) {
 /// com onDelete: Restrict, e um relatório de vendas com produto faltando é pior
 /// que um produto arquivado na lista. Só apaga de verdade quem nunca vendeu.
 export async function archiveProduct(formData: FormData) {
-  const { scope, common } = await requireSellerScope();
+  const { scope, common, profile } = await requireSellerScope();
   const v = new Validator(formData);
   const id = v.id("id", "Produto");
   if (!v.ok) throw new Error("Requisição inválida.");
 
   await scope.products.update(id, { status: "ARCHIVED" });
   await common.events.record("PRODUCT_ARCHIVED", { entityType: "Product", entityId: id });
+  await recordAudit({
+    userId: profile.userId,
+    profileId: profile.id,
+    action: "PRODUCT_ARCHIVED",
+    entityType: "Product",
+    entityId: id,
+  });
 
   revalidatePath("/dashboard/produtos");
   redirect("/dashboard/produtos");

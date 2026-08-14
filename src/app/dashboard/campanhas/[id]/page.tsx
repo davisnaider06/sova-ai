@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CampaignForm } from "@/components/campanhas/campaign-form";
 import { requireSellerScope } from "@/lib/session";
 import { formatBRL, formatCompactNumber, toCents, toPercent } from "@/lib/money";
+import { loadCampaignMetrics } from "@/lib/campaign-metrics";
 import { toggleCampaignProduct, updateCampaign } from "../actions";
 
 export default async function CampanhaPage({
@@ -27,6 +28,11 @@ export default async function CampanhaPage({
   const products = await scope.products.findMany({ orderBy: { name: "asc" } });
   const linkedIds = new Set(campaign.products.map((cp) => cp.productId));
 
+  const metrics = (await loadCampaignMetrics([campaign.id])).get(campaign.id);
+  const goal = campaign.targetSales ?? null;
+  const goalProgress =
+    goal && goal > 0 && metrics ? Math.min(metrics.orders / goal, 1) : null;
+
   return (
     <>
       <Topbar title={campaign.name} subtitle="Campanha" />
@@ -39,6 +45,49 @@ export default async function CampanhaPage({
           <ArrowLeft className="h-4 w-4" />
           Voltar para campanhas
         </Link>
+
+        {/* §45 — campanha sem número é só uma anotação. Só aparece quando já
+            houve venda: uma fileira de zeros não informa nada e ainda sugere
+            fracasso onde só houve falta de tempo. */}
+        {metrics && metrics.orders > 0 && (
+          <Card className="flex flex-wrap items-center gap-x-10 gap-y-4 p-5">
+            <Metric label="GMV" value={formatBRL(metrics.gmvCents)} />
+            <Metric label="Pedidos" value={String(metrics.orders)} />
+            <Metric label="Creators" value={String(metrics.activeCreators)} />
+            <Metric label="Comissões" value={formatBRL(metrics.commissionCents)} />
+            <Metric
+              label="Lucro estimado"
+              value={
+                metrics.estimatedProfitCents !== null
+                  ? formatBRL(metrics.estimatedProfitCents)
+                  : "—"
+              }
+              hint={metrics.estimatedProfitCents === null ? "faltam custos" : undefined}
+            />
+            <Metric
+              label="ROI"
+              value={metrics.roi !== null ? `${metrics.roi.toFixed(1).replace(".", ",")}x` : "—"}
+              hint="GMV por real de comissão"
+            />
+
+            {goalProgress !== null && goal !== null && (
+              <div className="w-full">
+                <div className="flex items-baseline justify-between text-xs">
+                  <span className="text-ink-muted">Meta de vendas</span>
+                  <span className="tabular-nums text-ink-secondary">
+                    {metrics.orders} de {goal}
+                  </span>
+                </div>
+                <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-border-strong">
+                  <div
+                    className="h-full rounded-full bg-brand"
+                    style={{ width: `${Math.round(goalProgress * 100)}%` }}
+                  />
+                </div>
+              </div>
+            )}
+          </Card>
+        )}
 
         <Tabs defaultValue="produtos">
           <TabsList>
@@ -181,6 +230,26 @@ export default async function CampanhaPage({
         </Tabs>
       </div>
     </>
+  );
+}
+
+function Metric({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+}) {
+  return (
+    <div>
+      <p className="text-xs text-ink-muted">{label}</p>
+      <p className="mt-0.5 text-lg font-semibold tracking-tight tabular-nums text-ink-primary">
+        {value}
+      </p>
+      {hint && <p className="text-[11px] text-ink-muted">{hint}</p>}
+    </div>
   );
 }
 

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireSellerScope } from "@/lib/session";
+import { recordAudit } from "@/lib/audit";
 import { importOrdersCsv } from "@/lib/integration/orders-import";
 import type { ImportState } from "@/lib/integration/orders-contract";
 import { DEFAULT_ATTRIBUTION_WINDOW_DAYS } from "@/lib/attribution";
@@ -12,7 +13,7 @@ export async function importOrders(
   _prev: ImportState,
   formData: FormData,
 ): Promise<ImportState> {
-  const { scope, common } = await requireSellerScope();
+  const { scope, common, profile } = await requireSellerScope();
 
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
@@ -46,6 +47,18 @@ export async function importOrders(
       ordersCreated: report.ordersCreated,
       ordersSkipped: report.ordersSkipped,
       errors: report.errors.length,
+      windowDays,
+    },
+  });
+
+  await recordAudit({
+    userId: profile.userId,
+    profileId: profile.id,
+    action: "ORDERS_IMPORTED",
+    metadata: {
+      fileName: file.name,
+      ordersCreated: report.ordersCreated,
+      ordersSkipped: report.ordersSkipped,
       windowDays,
     },
   });

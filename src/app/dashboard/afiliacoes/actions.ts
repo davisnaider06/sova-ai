@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireSellerScope } from "@/lib/session";
 import { Validator } from "@/lib/form";
+import { recordAudit } from "@/lib/audit";
 import { AffiliationStatus } from "@/generated/prisma";
 
 // Decisão do seller sobre quem pode promover seus produtos.
@@ -19,7 +20,7 @@ const DECIDABLE = [
 ] as const;
 
 export async function decideAffiliation(formData: FormData) {
-  const { scope, common } = await requireSellerScope();
+  const { scope, common, profile } = await requireSellerScope();
   const v = new Validator(formData);
 
   const id = v.id("id", "Afiliação");
@@ -30,6 +31,14 @@ export async function decideAffiliation(formData: FormData) {
   if (count === 0) throw new Error("Afiliação não encontrada.");
 
   await common.events.record("AFFILIATION_DECIDED", {
+    entityType: "Affiliation",
+    entityId: id,
+    metadata: { status },
+  });
+  await recordAudit({
+    userId: profile.userId,
+    profileId: profile.id,
+    action: "AFFILIATION_DECIDED",
     entityType: "Affiliation",
     entityId: id,
     metadata: { status },

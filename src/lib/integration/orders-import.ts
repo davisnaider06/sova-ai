@@ -261,6 +261,26 @@ async function importOneOrder(
   const rate = attributed ? Number(attributed.commissionRate.toString()) : 0;
   const commissionCents = attributed ? Math.round(gmvCents * rate) : 0;
 
+  // Campanha vigente na data da venda, se houver.
+  //
+  // Sem isso `Order.campaignId` ficava sempre nulo e toda campanha exibia
+  // resultado zero — o seller montava a iniciativa e nunca conseguia saber se
+  // ela funcionou. A janela é a da própria campanha: uma venda de julho não
+  // entra numa campanha que começou em agosto.
+  const campaign = await prisma.campaign.findFirst({
+    where: {
+      sellerProfileId,
+      status: { in: ["ACTIVE", "PAUSED", "ENDED"] },
+      products: { some: { productId: { in: productIds } } },
+      AND: [
+        { OR: [{ startAt: null }, { startAt: { lte: placedAt } }] },
+        { OR: [{ endAt: null }, { endAt: { gte: placedAt } }] },
+      ],
+    },
+    orderBy: { startAt: "desc" },
+    select: { id: true },
+  });
+
   // Uma transação: pedido, itens e comissão entram juntos ou não entram.
   // Pedido gravado sem a comissão correspondente é dinheiro que some do
   // extrato do creator sem ninguém saber por quê.
@@ -268,6 +288,7 @@ async function importOneOrder(
     const order = await tx.order.create({
       data: {
         sellerProfileId,
+        campaignId: campaign?.id ?? null,
         orderStatus: status,
         paymentStatus: paymentFor(status),
         totalAmount: toDecimalString(gmvCents),
@@ -300,6 +321,7 @@ async function importOneOrder(
           creatorProfileId: attributed.creatorProfileId,
           orderId: order.id,
           affiliationId: attributed.id,
+          campaignId: campaign?.id ?? null,
           // Taxa congelada no momento da criação. Se o seller mudar a comissão
           // amanhã, esta linha não muda junto.
           rate: String(rate),

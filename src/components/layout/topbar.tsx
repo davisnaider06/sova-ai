@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Bell, Search } from "lucide-react";
 import { useUser, UserButton } from "@clerk/nextjs";
-import { Input } from "@/components/ui/input";
+import { NotificationsBell } from "@/components/layout/notifications-bell";
 import { ThemeToggle } from "@/components/providers/theme-toggle";
 import { cn } from "@/lib/utils";
 
@@ -58,22 +57,12 @@ export function Topbar({ title, subtitle }: { title: string; subtitle?: string }
         </div>
 
         <div className="flex shrink-0 items-center gap-2.5">
-          <div className="relative hidden md:block">
-            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted" />
-            <Input
-              placeholder="Buscar produtos, vídeos..."
-              className={cn("pl-10 transition-all", scrolled ? "h-9 w-44" : "w-64")}
-            />
-          </div>
-          <button
-            className={cn(
-              "glass-surface relative flex shrink-0 items-center justify-center rounded-full text-ink-secondary transition-all hover:text-ink-primary",
-              scrolled ? "h-9 w-9" : "h-10 w-10",
-            )}
-          >
-            <Bell className="h-4 w-4" />
-            <span className="absolute right-2.5 top-2.5 h-1.5 w-1.5 rounded-full bg-brand" />
-          </button>
+          {/* Aqui havia um campo de busca global que não buscava nada. Cada
+              listagem já tem a sua, que funciona — e um campo que aceita o que
+              você digita e não faz nada é pior que campo nenhum. */}
+          <NotificationsBell
+            className={cn("transition-all", scrolled ? "h-9 w-9" : "h-10 w-10")}
+          />
           <ThemeToggle className={cn("shrink-0 transition-all", scrolled ? "h-9 w-9" : "h-10 w-10")} />
           <UserButton
             appearance={{

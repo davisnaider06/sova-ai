@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireSellerScope } from "@/lib/session";
 import { Validator, fail, succeed, type ActionState } from "@/lib/form";
+import { recordAudit } from "@/lib/audit";
 import { toDecimalString } from "@/lib/money";
 import { CampaignStatus } from "@/generated/prisma";
 
@@ -43,7 +44,7 @@ export async function createCampaign(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const { scope, common } = await requireSellerScope();
+  const { scope, common, profile } = await requireSellerScope();
   const { v, data } = readCampaignForm(formData);
   if (!v.ok) return fail(v.errors, "Confira os campos destacados.");
 
@@ -62,6 +63,14 @@ export async function createCampaign(
     entityType: "Campaign",
     entityId: campaign.id,
   });
+  await recordAudit({
+    userId: profile.userId,
+    profileId: profile.id,
+    action: "CAMPAIGN_CREATED",
+    entityType: "Campaign",
+    entityId: campaign.id,
+    metadata: { name: data.name },
+  });
 
   revalidatePath("/dashboard/campanhas");
   redirect(`/dashboard/campanhas/${campaign.id}`);
@@ -71,7 +80,7 @@ export async function updateCampaign(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const { scope } = await requireSellerScope();
+  const { scope, profile } = await requireSellerScope();
   const { v, data } = readCampaignForm(formData);
   const id = v.id("id", "Campanha");
   if (!v.ok) return fail(v.errors, "Confira os campos destacados.");
@@ -87,6 +96,15 @@ export async function updateCampaign(
     endAt: data.endAt,
   });
   if (count === 0) return fail({}, "Campanha não encontrada.");
+
+  await recordAudit({
+    userId: profile.userId,
+    profileId: profile.id,
+    action: "CAMPAIGN_UPDATED",
+    entityType: "Campaign",
+    entityId: id,
+    metadata: { name: data.name, status: data.status },
+  });
 
   revalidatePath("/dashboard/campanhas");
   revalidatePath(`/dashboard/campanhas/${id}`);

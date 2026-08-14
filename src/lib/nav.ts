@@ -1,4 +1,5 @@
 import {
+  BarChart3,
   Bot,
   Compass,
   FileText,
@@ -50,6 +51,7 @@ const SELLER: NavSection[] = [
       { href: "/dashboard/afiliacoes", label: "Afiliações", icon: Handshake, mobile: true },
       { href: "/dashboard/creators", label: "Encontrar creators", icon: Users },
       { href: "/dashboard/pedidos", label: "Pedidos", icon: Receipt, mobile: true },
+      { href: "/dashboard/comissoes", label: "Comissões", icon: Wallet },
     ],
   },
   {
@@ -68,7 +70,9 @@ const CREATOR: NavSection[] = [
       { href: "/dashboard", label: "Visão geral", icon: LayoutDashboard, mobile: true },
       { href: "/dashboard/descobrir", label: "Descobrir produtos", icon: Compass, mobile: true },
       { href: "/dashboard/minhas-afiliacoes", label: "Minhas afiliações", icon: Handshake, mobile: true },
+      { href: "/dashboard/campanhas", label: "Campanhas", icon: Megaphone },
       { href: "/dashboard/conteudo", label: "Meu conteúdo", icon: Video },
+      { href: "/dashboard/desempenho", label: "Desempenho", icon: BarChart3 },
       { href: "/dashboard/comissoes", label: "Comissões", icon: Wallet, mobile: true },
     ],
   },

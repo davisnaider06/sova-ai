@@ -610,6 +610,37 @@ async function main() {
     });
   }
 
+  // --- Liga os pedidos existentes à campanha ------------------------------
+  //
+  // Os pedidos são criados antes da campanha, então precisam ser vinculados
+  // depois. Mesma regra da ingestão: só entra pedido de produto da campanha,
+  // dentro da janela dela — senão a campanha exibiria resultado que não gerou.
+  const campanha = await prisma.campaign.findFirst({
+    where: { sellerProfileId: glowSellerId, name: "Verão — linha facial" },
+    select: { id: true, startAt: true, endAt: true, products: { select: { productId: true } } },
+  });
+
+  if (campanha) {
+    const alvo = campanha.products.map((p) => p.productId);
+    const { count: vinculados } = await prisma.order.updateMany({
+      where: {
+        campaignId: null,
+        items: { some: { productId: { in: alvo } } },
+        ...(campanha.startAt ? { placedAt: { gte: campanha.startAt } } : {}),
+        ...(campanha.endAt ? { placedAt: { lte: campanha.endAt } } : {}),
+      },
+      data: { campaignId: campanha.id },
+    });
+
+    if (vinculados > 0) {
+      await prisma.commission.updateMany({
+        where: { campaignId: null, order: { campaignId: campanha.id } },
+        data: { campaignId: campanha.id },
+      });
+      console.log(`✓ ${vinculados} pedidos vinculados à campanha de demonstração.`);
+    }
+  }
+
   // --- Perfis para a sua conta real ---------------------------------------
   const userId = process.env.SEED_USER_ID;
   if (userId) {

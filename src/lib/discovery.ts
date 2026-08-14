@@ -192,6 +192,77 @@ export async function discoverProductsFor(
     .sort((a, b) => b.match.score - a.match.score);
 }
 
+/// Um produto do catálogo, pontuado para este creator. Devolve null quando o
+/// produto não existe ou não está ativo — o creator não deveria descobrir, pelo
+/// erro, que existe um produto pausado ali.
+export async function discoverProductById(
+  creatorProfileId: string,
+  productId: string,
+): Promise<(ScoredProduct & { sellerCompany: string | null; stockQuantity: number | null }) | null> {
+  const [signals, product, affiliation] = await Promise.all([
+    loadCreatorSignals(creatorProfileId),
+    prisma.product.findFirst({
+      where: { id: productId, status: "ACTIVE" },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        category: true,
+        price: true,
+        imageUrl: true,
+        stockQuantity: true,
+        sellerProfile: {
+          select: {
+            companyName: true,
+            profile: { select: { displayName: true } },
+          },
+        },
+        affiliations: {
+          where: { status: "ACTIVE" },
+          select: { commissionRate: true },
+          orderBy: { commissionRate: "desc" },
+          take: 1,
+        },
+        campaignProducts: {
+          where: { campaign: { status: "ACTIVE" } },
+          select: {
+            commissionRate: true,
+            campaign: { select: { commissionRate: true } },
+          },
+          take: 1,
+        },
+      },
+    }),
+    prisma.affiliation.findFirst({
+      where: { creatorProfileId, productId },
+      select: { status: true },
+    }),
+  ]);
+
+  if (!product) return null;
+
+  const commissionRate = offeredRate(product);
+
+  return {
+    id: product.id,
+    name: product.name,
+    description: product.description,
+    category: product.category,
+    priceCents: toCents(product.price),
+    imageUrl: product.imageUrl,
+    stockQuantity: product.stockQuantity,
+    commissionRate,
+    sellerName: product.sellerProfile.profile.displayName,
+    sellerCompany: product.sellerProfile.companyName,
+    match: matchCreatorToProduct(signals, {
+      category: product.category,
+      priceCents: toCents(product.price),
+      commissionRate,
+    }),
+    affiliationStatus: affiliation?.status ?? null,
+  };
+}
+
 /// A busca do lado seller: creators pontuados contra um produto específico.
 export async function discoverCreatorsFor(
   product: { id: string; category: string; priceCents: number; commissionRate: number },

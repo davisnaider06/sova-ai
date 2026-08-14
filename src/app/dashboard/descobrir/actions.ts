@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireCreatorScope } from "@/lib/session";
 import { Validator } from "@/lib/form";
+import { recordAudit } from "@/lib/audit";
 import { DEFAULT_OFFER_RATE } from "@/lib/discovery";
 
 /// Creator pede para promover um produto.
@@ -13,7 +14,7 @@ import { DEFAULT_OFFER_RATE } from "@/lib/discovery";
 /// essa taxa é o que vai ser congelada na comissão depois. Preço e comissão são
 /// decisão do seller; o creator aceita ou não.
 export async function requestAffiliation(formData: FormData) {
-  const { scope, common } = await requireCreatorScope();
+  const { scope, common, profile } = await requireCreatorScope();
   const v = new Validator(formData);
   const productId = v.id("productId", "Produto");
   if (!v.ok) throw new Error("Requisição inválida.");
@@ -52,8 +53,16 @@ export async function requestAffiliation(formData: FormData) {
     entityId: productId,
     metadata: { rate },
   });
+  await recordAudit({
+    userId: profile.userId,
+    profileId: profile.id,
+    action: "AFFILIATION_REQUESTED",
+    entityType: "Product",
+    entityId: productId,
+    metadata: { rate },
+  });
 
-  revalidatePath("/dashboard/descobrir");
+  revalidatePath("/dashboard/descobrir", "layout");
   revalidatePath("/dashboard/minhas-afiliacoes");
 }
 
@@ -67,5 +76,5 @@ export async function endAffiliation(formData: FormData) {
   await scope.affiliations.end(id);
 
   revalidatePath("/dashboard/minhas-afiliacoes");
-  revalidatePath("/dashboard/descobrir");
+  revalidatePath("/dashboard/descobrir", "layout");
 }

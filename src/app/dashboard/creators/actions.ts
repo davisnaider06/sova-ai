@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireSellerScope } from "@/lib/session";
 import { Validator } from "@/lib/form";
+import { recordAudit } from "@/lib/audit";
 import { DEFAULT_OFFER_RATE } from "@/lib/discovery";
 
 /// Seller habilita um creator a promover um produto seu.
@@ -13,7 +14,7 @@ import { DEFAULT_OFFER_RATE } from "@/lib/discovery";
 /// a decisão dele já está tomada — deixar em PENDING criaria uma fila que só
 /// ele mesmo poderia aprovar.
 export async function enableCreator(formData: FormData) {
-  const { scope, common } = await requireSellerScope();
+  const { scope, common, profile } = await requireSellerScope();
   const v = new Validator(formData);
   const productId = v.id("productId", "Produto");
   const creatorProfileId = v.id("creatorProfileId", "Creator");
@@ -52,6 +53,14 @@ export async function enableCreator(formData: FormData) {
     entityId: productId,
     metadata: { creatorProfileId, rate },
   });
+  await recordAudit({
+    userId: profile.userId,
+    profileId: profile.id,
+    action: "CREATOR_ENABLED",
+    entityType: "Product",
+    entityId: productId,
+    metadata: { creatorProfileId, rate },
+  });
 
   revalidatePath("/dashboard/creators");
   revalidatePath("/dashboard/afiliacoes");
@@ -61,7 +70,7 @@ export async function enableCreator(formData: FormData) {
 /// Convida um creator para uma campanha. Aqui INVITED faz sentido: o creator
 /// precisa aceitar participar de uma iniciativa com prazo e contrapartida.
 export async function inviteCreatorToCampaign(formData: FormData) {
-  const { scope, common } = await requireSellerScope();
+  const { scope, common, profile } = await requireSellerScope();
   const v = new Validator(formData);
   const campaignId = v.id("campaignId", "Campanha");
   const creatorProfileId = v.id("creatorProfileId", "Creator");
@@ -77,6 +86,14 @@ export async function inviteCreatorToCampaign(formData: FormData) {
   });
 
   await common.events.record("CAMPAIGN_CREATOR_INVITED", {
+    entityType: "Campaign",
+    entityId: campaignId,
+    metadata: { creatorProfileId },
+  });
+  await recordAudit({
+    userId: profile.userId,
+    profileId: profile.id,
+    action: "CREATOR_INVITED",
     entityType: "Campaign",
     entityId: campaignId,
     metadata: { creatorProfileId },
