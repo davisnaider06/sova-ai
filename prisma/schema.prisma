@@ -225,8 +225,67 @@ model ExternalAccount {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  tiktokVideos TikTokVideo[]
+
   @@unique([provider, providerAccountId])
   @@index([profileId])
+}
+
+/// Vídeo do TikTok do próprio creator, lido pela Display API com consentimento.
+///
+/// Tabela própria, e **não** `Content`, por um motivo concreto: `Content` é
+/// conteúdo do creator promovendo um produto, e `Content.publishedAt` alimenta
+/// o serviço de atribuição — é ele que decide de quem é a comissão de uma
+/// venda. Despejar aqui os vídeos que o creator publica sobre qualquer assunto
+/// colocaria vídeos sem relação nenhuma como candidatos à atribuição, e a
+/// comissão iria para a pessoa errada.
+///
+/// Quando um vídeo destes for reconhecido como promoção de um produto, aí sim
+/// ele vira um `Content` — por decisão explícita, não por importação em massa.
+model TikTokVideo {
+  id                String          @id @default(cuid())
+  externalAccountId String
+  externalAccount   ExternalAccount @relation(fields: [externalAccountId], references: [id], onDelete: Cascade)
+
+  /// `id` do objeto de vídeo do TikTok (também chamado de item_id).
+  videoId     String
+  title       String?
+  description String? @db.Text
+
+  shareUrl  String?
+  embedLink String?
+  /// A doc avisa que este link expira em 6 horas. Guardamos por conveniência,
+  /// mas nenhuma tela deve tratá-lo como permanente.
+  coverImageUrl String?
+
+  durationSeconds Int?
+  width           Int?
+  height          Int?
+  /// `create_time` do TikTok, que vem em segundos desde a época.
+  publishedAt DateTime?
+
+  viewCount    Int @default(0)
+  likeCount    Int @default(0)
+  commentCount Int @default(0)
+  shareCount   Int @default(0)
+
+  /// Derivada, não recebida: (likes + comentários + compartilhamentos) ÷ views.
+  /// Nula quando views é zero — dividir por zero viraria número inventado.
+  engagementRate Decimal? @db.Decimal(6, 4)
+
+  /// Quando esta linha foi lida da API. Métrica do TikTok é um retrato, não um
+  /// valor estável: sem isso não dá para saber se o número é de hoje ou do mês
+  /// passado.
+  fetchedAt DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Idempotência do sync: reimportar a mesma conta atualiza o vídeo em vez de
+  /// duplicar. Escopado à conexão, não global — o mesmo vídeo lido por duas
+  /// conexões diferentes são duas leituras legítimas.
+  @@unique([externalAccountId, videoId])
+  @@index([externalAccountId, publishedAt])
 }
 
 // ===========================================================================

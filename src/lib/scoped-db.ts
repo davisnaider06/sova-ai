@@ -357,6 +357,42 @@ export function profileScope(profileId: string) {
 
       findByProvider: (provider: Prisma.ExternalAccountUncheckedCreateInput["provider"]) =>
         prisma.externalAccount.findFirst({ where: { profileId, provider } }),
+
+      /// Cria ou atualiza a conexão deste perfil com um provedor.
+      ///
+      /// Devolve `null` quando a conta externa já pertence a OUTRO perfil. A
+      /// constraint `@@unique([provider, providerAccountId])` garante que uma
+      /// conta do TikTok só se liga a um perfil no sistema inteiro; sem esta
+      /// checagem, o upsert estouraria com erro de constraint na cara do
+      /// usuário em vez de uma mensagem que ele entende.
+      connect: async (
+        provider: Prisma.ExternalAccountUncheckedCreateInput["provider"],
+        providerAccountId: string,
+        data: Omit<
+          Prisma.ExternalAccountUncheckedCreateInput,
+          "id" | "profileId" | "provider" | "providerAccountId"
+        >,
+      ) => {
+        const existing = await prisma.externalAccount.findUnique({
+          where: { provider_providerAccountId: { provider, providerAccountId } },
+          select: { id: true, profileId: true },
+        });
+
+        if (existing && existing.profileId !== profileId) return null;
+
+        return prisma.externalAccount.upsert({
+          where: { provider_providerAccountId: { provider, providerAccountId } },
+          create: { ...data, profileId, provider, providerAccountId },
+          update: data,
+        });
+      },
+
+      /// Atualiza campos de uma conexão do próprio perfil.
+      ///
+      /// `updateMany` com o filtro de dono: id de outro perfil simplesmente não
+      /// encontra linha, em vez de escrever onde não devia.
+      update: (id: string, data: Prisma.ExternalAccountUncheckedUpdateInput) =>
+        prisma.externalAccount.updateMany({ where: { id, profileId }, data }),
     },
 
     events: {

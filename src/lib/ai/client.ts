@@ -52,6 +52,13 @@ export function describeAiError(error: unknown): string {
     return "Limite de uso da API atingido. Tente de novo em alguns instantes.";
   }
   if (error instanceof Anthropic.BadRequestError) {
+    // Saldo zerado chega como 400, não como erro de pagamento — e a mensagem
+    // crua é um JSON que não ajuda ninguém. Vale traduzir porque é o erro mais
+    // provável logo depois de criar a primeira chave: a assinatura do Claude
+    // não financia o uso da API, o crédito é comprado à parte.
+    if (/credit balance is too low/i.test(error.message)) {
+      return "A conta da Anthropic está sem créditos de API. Adicione crédito em console.anthropic.com > Plans & Billing.";
+    }
     return `A requisição foi recusada pela API: ${error.message}`;
   }
   if (error instanceof Anthropic.APIConnectionError) {

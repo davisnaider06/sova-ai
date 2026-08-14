@@ -40,7 +40,9 @@ export type AuditAction =
   | "AFFILIATION_ENDED"
   | "COMMISSION_CHANGED"
   | "ORDERS_IMPORTED"
-  | "TIKTOK_CONNECTED";
+  | "TIKTOK_CONNECTED"
+  | "TIKTOK_DISCONNECTED"
+  | "TIKTOK_SYNCED";
 
 export async function recordAudit(entry: {
   userId?: string | null;
