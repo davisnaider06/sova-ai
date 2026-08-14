@@ -131,7 +131,7 @@ export default function LandingPage() {
                   ))}
                 </div>
               </div>
-              <div className="rounded-2xl bg-brand p-5 text-brand-foreground">
+              <div className="rounded-2xl bg-selected p-5 text-selected-foreground">
                 <p className="text-xs font-medium opacity-70">Opportunity Score</p>
                 <p className="mt-1 text-4xl font-semibold">{trendingProducts[1].opportunityScore}</p>
                 <p className="mt-1 text-sm opacity-80">{trendingProducts[1].name}</p>
@@ -190,7 +190,7 @@ export default function LandingPage() {
           <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
             {ecosystem.map((item) => (
               <Card key={item.title} className="p-5">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand/15">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-selected/10">
                   <item.icon className="h-5 w-5 text-brand-ink" />
                 </div>
                 <h3 className="mt-4 text-sm font-semibold text-ink-primary">{item.title}</h3>
@@ -220,7 +220,7 @@ export default function LandingPage() {
                 key={plan.id}
                 className={
                   plan.highlighted
-                    ? "relative border-brand p-6 shadow-[0_0_0_1px_var(--brand)]"
+                    ? "relative border-brand-ink p-6 shadow-[0_0_0_1px_var(--brand)]"
                     : "p-6"
                 }
               >

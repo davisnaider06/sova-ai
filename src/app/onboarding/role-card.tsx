@@ -24,7 +24,7 @@ function Submit({
       disabled={pending}
       className={cn(
         "glass-surface group flex h-full w-full flex-col rounded-2xl p-6 text-left transition-all",
-        "hover:border-brand/40 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50",
+        "hover:border-brand-ink/40 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50",
         pending && "pointer-events-none opacity-60",
       )}
     >

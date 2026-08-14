@@ -28,8 +28,8 @@ export function GmvAreaChart({ data }: { data: Point[] }) {
       <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
         <defs>
           <linearGradient id="gmvFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--brand)" stopOpacity={0.35} />
-            <stop offset="100%" stopColor="var(--brand)" stopOpacity={0} />
+            <stop offset="0%" stopColor="var(--chart-brand)" stopOpacity={0.35} />
+            <stop offset="100%" stopColor="var(--chart-brand)" stopOpacity={0} />
           </linearGradient>
         </defs>
         <CartesianGrid vertical={false} stroke="var(--chart-grid)" strokeDasharray="3 3" />
@@ -45,11 +45,11 @@ export function GmvAreaChart({ data }: { data: Point[] }) {
         <Area
           type="monotone"
           dataKey="value"
-          stroke="var(--brand)"
+          stroke="var(--chart-brand)"
           strokeWidth={2}
           fill="url(#gmvFill)"
           dot={false}
-          activeDot={{ r: 4, fill: "var(--brand)", stroke: "var(--page)", strokeWidth: 2 }}
+          activeDot={{ r: 4, fill: "var(--chart-brand)", stroke: "var(--page)", strokeWidth: 2 }}
         />
       </AreaChart>
     </ResponsiveContainer>

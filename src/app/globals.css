@@ -6,38 +6,52 @@
 :root {
   color-scheme: light;
 
-  /* Brand — same pair in both themes, it's self-contained (lime bg + near-black text) */
+  /* -------------------------------------------------------------------------
+     Tema claro = preto e branco. O verde é da marca e do GRÁFICO, não do
+     cromo da interface.
+     Antes, o verde era superfície (página esverdeada) e também o fundo do item
+     de menu ativo — o que fazia a tela inteira puxar para o verde e tirava do
+     gráfico o poder de chamar atenção. Aqui o verde aparece só onde carrega
+     significado: a logo e o dado.
+     ------------------------------------------------------------------------- */
+
+  /* Brand — o par é auto-contido (lima + quase-preto), igual nos dois temas */
   --brand: #c2ea22;
   --brand-strong: #aad11a;
   --brand-foreground: #0b0d05;
 
-  /* Brand as TEXT on a surface — não é o mesmo que --brand.
-     O lime foi desenhado como fundo com tinta escura por cima; usado como cor
-     de texto sobre superfície clara ele dá ~1,4:1 de contraste, e é justamente
-     onde vai o número que mais importa para o creator ("você ganha R$ ..."). */
-  --brand-ink: #4f6300;
+  /* Seleção / item ativo. No claro é preto sobre branco; no escuro vira o
+     verde da marca (ver .dark). É este token que os componentes usam — não o
+     --brand direto — para que a decisão viva num lugar só. */
+  --selected-bg: #0a0a0a;
+  --selected-fg: #ffffff;
+
+  /* Verde para TEXTO e ícone. O lima da marca sobre branco dá 1,4:1 — ilegível.
+     Este tom dá 4,59:1, que passa AA para texto normal. No escuro volta a ser
+     o lima (14,2:1 sobre a página escura). Usado por `text-brand-ink`. */
+  --brand-ink: #5f8000;
 
   /* Surfaces (page plane, opaque chrome) */
-  --page: #eef0e6;
-  --surface-0: #f5f6f0;
-  --surface-inverse: #14140f;
+  --page: #ffffff;
+  --surface-0: #fafafa;
+  --surface-inverse: #0a0a0a;
 
   /* Glass surfaces (cards, sidebar, topbar) */
-  --glass-bg: rgba(255, 255, 255, 0.55);
-  --glass-bg-strong: rgba(255, 255, 255, 0.88);
-  --glass-border: rgba(20, 20, 15, 0.08);
-  --glass-shadow: 0 8px 32px -8px rgba(20, 20, 15, 0.12);
-  --glass-shadow-strong: 0 16px 40px -8px rgba(20, 20, 15, 0.28);
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-bg-strong: rgba(255, 255, 255, 0.95);
+  --glass-border: rgba(10, 10, 10, 0.08);
+  --glass-shadow: 0 8px 32px -8px rgba(10, 10, 10, 0.10);
+  --glass-shadow-strong: 0 16px 40px -8px rgba(10, 10, 10, 0.22);
 
-  /* Ink */
-  --ink-primary: #14140f;
-  --ink-secondary: #55564c;
-  --ink-muted: #8b8c80;
-  --ink-inverse: #f7f8f2;
+  /* Ink — cinzas neutros, sem puxar para o verde */
+  --ink-primary: #0a0a0a;
+  --ink-secondary: #52525b;
+  --ink-muted: #8a8a91;
+  --ink-inverse: #ffffff;
 
   /* Borders */
-  --border-hairline: rgba(20, 20, 15, 0.09);
-  --border-strong: rgba(20, 20, 15, 0.16);
+  --border-hairline: rgba(10, 10, 10, 0.08);
+  --border-strong: rgba(10, 10, 10, 0.16);
 
   /* Chart categorical (validated) */
   --series-1: #2a78d6;
@@ -53,10 +67,18 @@
   --status-serious: #ec835a;
   --status-critical: #d03b3b;
 
+  /* Verde do gráfico.
+     NÃO é o --brand: o lima da marca em fundo branco dá 1,36:1 de contraste —
+     invisível. Este é o tom mais claro da mesma família que passa a validação
+     (faixa de luminosidade + contraste ≥ 3:1) contra superfície clara.
+     Verificado com scripts/validate_palette.js em 12/08/2026. */
+  --chart-brand: #7a9c0f;
+  --chart-brand-soft: rgba(122, 156, 15, 0.16);
+
   /* Chart chrome */
-  --chart-grid: #ddded2;
-  --chart-baseline: #c3c4b7;
-  --chart-muted: #8b8c80;
+  --chart-grid: #ececec;
+  --chart-baseline: #c9c9c9;
+  --chart-muted: #8a8a91;
 
   --radius: 1rem;
 
@@ -85,9 +107,17 @@
 .dark {
   color-scheme: dark;
 
-  /* No escuro o lime já tem contraste de sobra sobre a superfície, então a
-     tinta de marca volta a ser a própria cor da marca. */
+  /* No escuro o verde da marca funciona como destaque: contraste sobra e ele
+     não domina a tela como fazia no claro. Então item ativo volta a ser verde. */
+  --selected-bg: var(--brand);
+  --selected-fg: var(--brand-foreground);
+
   --brand-ink: #c2ea22;
+
+  /* Contra superfície escura o lima da marca passa contraste com folga, então
+     o gráfico usa o verde de verdade. */
+  --chart-brand: #c2ea22;
+  --chart-brand-soft: rgba(194, 234, 34, 0.18);
 
   --page: #0a0a0b;
   --surface-0: #131316;
@@ -136,7 +166,13 @@
   --color-brand: var(--brand);
   --color-brand-strong: var(--brand-strong);
   --color-brand-foreground: var(--brand-foreground);
+
+  --color-selected: var(--selected-bg);
+  --color-selected-foreground: var(--selected-fg);
   --color-brand-ink: var(--brand-ink);
+
+  --color-chart-brand: var(--chart-brand);
+  --color-chart-brand-soft: var(--chart-brand-soft);
 
   --color-border-hairline: var(--border-hairline);
   --color-border-strong: var(--border-strong);
@@ -196,8 +232,8 @@ body {
 }
 
 ::selection {
-  background: var(--brand);
-  color: var(--brand-foreground);
+  background: var(--selected-bg);
+  color: var(--selected-fg);
 }
 
 .glass-surface {

@@ -28,7 +28,7 @@ export function MobileNav({ activeType }: { activeType: ProfileType }) {
             <span
               className={cn(
                 "flex h-9 w-9 items-center justify-center rounded-full",
-                active && "bg-brand text-brand-foreground",
+                active && "bg-selected text-selected-foreground",
               )}
             >
               <item.icon className="h-4 w-4" />
