@@ -130,6 +130,7 @@ export default async function ProdutoPage({
             <div className="grid gap-5 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
               <EconomicsForm
                 productId={product.id}
+                priceCents={priceCents}
                 values={{
                   productCost: economics ? centsToInput(costs.productCost) : "",
                   shippingCost: economics ? centsToInput(costs.shippingCost) : "",

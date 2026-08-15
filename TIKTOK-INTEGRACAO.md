@@ -32,10 +32,27 @@ fora do alcance. Ver §12 do documento de pesquisa.
 
 ## 3. Configurar a aplicação no TikTok
 
-1. Acesse **developers.tiktok.com** e crie uma aplicação.
-2. Adicione o produto **Login Kit**.
-3. Adicione o produto **TikTok API** (Display API), necessário para
-   `/v2/user/info/` e `/v2/video/list/`.
+> **Tempo real:** 30–40 minutos de preenchimento. A aprovação dos scopes é fila
+> do TikTok e leva dias — por isso o que importa hoje é *submeter*, não terminar.
+
+**Antes de começar, tenha em mãos:** o CNPJ, um e-mail do domínio da empresa (se
+tiver), a URL de produção (`https://sova-ai-t3ma.vercel.app`), e uma descrição
+curta do que o app faz com os dados do usuário. As três últimas perguntas do
+formulário são sobre isso e travam quem não pensou antes.
+
+1. Acesse **developers.tiktok.com**, faça login com uma conta TikTok e vá em
+   **Manage apps → Connect an app**.
+   - **App name:** Sova
+   - **Category / descrição:** ferramenta de análise de conta para creators que
+     vendem por afiliação. Seja específico: descrição genérica é o motivo mais
+     comum de recusa na revisão.
+   - **Platform:** marque **Web** (e só Web). Isso importa: é a escolha de Web
+     que faz o TikTok recusar `localhost` na redirect URI, no passo 4.
+   - **Website URL:** `https://sova-ai-t3ma.vercel.app`
+2. Em **Products**, adicione **Login Kit**.
+3. Ainda em **Products**, adicione **TikTok API** (a Display API). É ela que
+   serve `/v2/user/info/` e `/v2/video/list/` — sem este produto o login
+   funciona e depois nenhuma chamada de dado responde.
 4. Em Login Kit, cadastre a **Redirect URI**. Precisa bater exatamente com
    `TIKTOK_REDIRECT_URI`, incluindo esquema e barra final:
 
@@ -56,8 +73,42 @@ fora do alcance. Ver §12 do documento de pesquisa.
    > sem esta integração — não é o ambiente de produção e não deve receber a
    > redirect URI. Quando houver domínio próprio, esta URL muda no painel do
    > TikTok **e** em `TIKTOK_REDIRECT_URI`, nos dois lugares.
-5. Solicite os scopes da §4.
-6. Copie **Client Key** e **Client Secret** para o `.env.local`.
+5. Em **Scopes**, clique **Add scopes** e peça os quatro da §4:
+   `user.info.basic`, `user.info.profile`, `user.info.stats`, `video.list`.
+
+   > Só o `user.info.basic` vem liberado por padrão. Os outros três exigem
+   > aprovação prévia, e é aqui que o formulário pergunta **por que** você
+   > precisa de cada um. Responda por caso de uso concreto, não por feature:
+   >
+   > - `user.info.stats` — "exibir ao próprio creator o tamanho e o engajamento
+   >   da audiência dele, para recomendar produtos compatíveis"
+   > - `video.list` — "analisar o desempenho dos vídeos do próprio creator para
+   >   sugerir formato e produto"
+   > - `user.info.profile` — "identificar a conta conectada na interface"
+   >
+   > O que o app faz é sempre com dados do **próprio usuário autenticado**, e
+   > dizer isso explicitamente ajuda: a maior parte das recusas é por parecer
+   > coleta de dados de terceiros.
+
+6. Copie **Client Key** e **Client Secret** e cole no `.env.local`, nas linhas
+   que já estão lá esperando:
+
+   ```bash
+   TIKTOK_CLIENT_KEY="aw..."
+   TIKTOK_CLIENT_SECRET="..."
+   ```
+
+7. Submeta a app para revisão. A partir daqui é fila do TikTok.
+
+### Depois que sair a aprovação
+
+- [ ] Cadastrar as 4 variáveis no painel da Vercel (`TIKTOK_CLIENT_KEY`,
+      `TIKTOK_CLIENT_SECRET`, `TIKTOK_REDIRECT_URI`, `TOKEN_ENCRYPTION_KEY`) —
+      a chave de criptografia é a mesma do `.env.local`, senão os tokens
+      gravados num ambiente não abrem no outro
+- [ ] Cadastrar também `CRON_SECRET`, ou o worker da fila fica desligado
+- [ ] Redeploy (variável nova só entra em build novo)
+- [ ] Testar o ciclo da §8
 
 ### Variáveis de ambiente
 
@@ -79,7 +130,13 @@ chave depois invalida os tokens guardados e força reconexão.
 | Variável | `.env.local` | Produção (Vercel) |
 |---|---|---|
 | `TOKEN_ENCRYPTION_KEY` | ✅ gerada | ⬜ **falta cadastrar** |
-| `TIKTOK_CLIENT_KEY` / `_SECRET` / `_REDIRECT_URI` | ⬜ | ⬜ depende de criar a app |
+| `CRON_SECRET` | ✅ gerada | ⬜ **falta cadastrar** |
+| `TIKTOK_CLIENT_KEY` / `_SECRET` | ⬜ vazias, esperando a app | ⬜ depende de criar a app |
+| `TIKTOK_REDIRECT_URI` | ✅ apontando para a Vercel | ⬜ depende de criar a app |
+
+> Uma versão anterior desta tabela dava a `TOKEN_ENCRYPTION_KEY` como gerada
+> quando ela não existia em lugar nenhum. Agora existe de fato — conferida no
+> arquivo, não presumida.
 
 Enquanto as três variáveis do TikTok não existirem, `getTikTokConfig()` devolve
 `null`, o card aparece como "não configurada" e o botão fica desabilitado. É o
@@ -197,10 +254,16 @@ Fluxo manual, depois de configurar as variáveis:
 - **Depende de aprovação da app no TikTok.** Login Kit e TikTok API precisam ser
   aprovados; sem isso o OAuth não completa. Nada aqui está marcado como
   disponível ao usuário final antes disso.
-- **A sincronização roda dentro da requisição**, com teto de
-  `SYNC_VIDEO_LIMIT` (60) vídeos. O modelo `Job` existe no schema mas nunca teve
-  worker nem cron; quando houver fila, `syncConnection` vira o corpo do job e
-  nada mais muda.
+- **O "Sincronizar agora" roda dentro da requisição**, com teto de
+  `SYNC_VIDEO_LIMIT` (60) vídeos — é o preço de dar resposta imediata ao clique.
+  O que mudou em 14/08/2026: existe worker. `src/lib/jobs/queue.ts` consome a
+  tabela `Job` com `SELECT FOR UPDATE SKIP LOCKED`, e `/api/cron/jobs` é
+  disparada pelo cron da Vercel (`vercel.json`), reagendando toda conexão
+  parada há mais de 6 horas. O corpo do job é o mesmo `syncConnection`.
+
+  > **Cron no plano Hobby da Vercel roda no máximo 1× por dia** — expressão mais
+  > frequente que isso *falha o deploy*. Por isso `vercel.json` está em
+  > `0 6 * * *`. No plano Pro, apertar para `0 */6 * * *` é trocar essa linha.
 - **Métricas por vídeo são um retrato**, não série temporal. Cada sync sobrescreve
   os contadores e atualiza `fetchedAt`. Guardar o histórico exigiria uma tabela de
   série, que ainda não se justifica.

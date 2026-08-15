@@ -1,12 +1,13 @@
 "use client";
 
-import { useActionState } from "react";
-import { AlertCircle, CheckCircle2 } from "lucide-react";
+import { useActionState, useState } from "react";
+import { AlertCircle, CheckCircle2, Wand2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { IDLE } from "@/lib/form";
+import { platformFee, TIKTOK_SHOP_BR } from "@/lib/platform-fees";
 import { saveEconomics } from "../actions";
 
 export type EconomicsFormValues = {
@@ -20,13 +21,22 @@ export type EconomicsFormValues = {
 
 export function EconomicsForm({
   productId,
+  priceCents,
   values,
 }: {
   productId: string;
+  priceCents: number;
   values: EconomicsFormValues;
 }) {
   const [state, formAction] = useActionState(saveEconomics, IDLE);
   const errors = state.status === "error" ? state.errors : {};
+
+  // A taxa da plataforma era um campo em branco que o seller tinha que
+  // adivinhar. A tabela do TikTok BR é escalonada e tem parte fixa por item,
+  // então "quanto o TikTok cobra" não é um número que alguém sabe de cabeça —
+  // e errar aqui contamina a margem, a comissão recomendada e o lucro.
+  const [fee, setFee] = useState(values.platformFee);
+  const suggestion = priceCents > 0 ? platformFee(TIKTOK_SHOP_BR, priceCents / 100) : null;
 
   return (
     <form action={formAction}>
@@ -69,11 +79,35 @@ export function EconomicsForm({
           <Input
             id="platformFee"
             name="platformFee"
-            defaultValue={values.platformFee}
+            value={fee}
+            onChange={(e) => setFee(e.target.value)}
             placeholder="R$ 0,00"
             inputMode="decimal"
           />
         </Field>
+
+        {suggestion && (
+          <button
+            type="button"
+            onClick={() => setFee(suggestion.total.toFixed(2).replace(".", ","))}
+            className="-mt-2 flex items-start gap-2 rounded-xl bg-surface-2 px-3 py-2 text-left text-xs text-ink-secondary transition-colors hover:bg-surface-3"
+          >
+            <Wand2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-ink" />
+            <span>
+              <span className="font-medium text-ink-primary">
+                {TIKTOK_SHOP_BR.label}: R$ {suggestion.total.toFixed(2).replace(".", ",")}
+              </span>{" "}
+              — {(suggestion.tier.rate * 100).toFixed(0).replace(".", ",")}% + R${" "}
+              {suggestion.fixed.toFixed(2).replace(".", ",")} fixos, que dão{" "}
+              {/* O efetivo é o número que assusta e informa: num produto barato,
+                  a parte fixa faz "10%" virar 30% na prática. */}
+              <span className="font-medium text-ink-primary">
+                {suggestion.effectiveRate.times(100).toFixed(1).replace(".", ",")}% do preço
+              </span>
+              . Toque para usar.
+            </span>
+          </button>
+        )}
 
         <Field
           label="Custo operacional"
