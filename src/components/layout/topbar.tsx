@@ -1,21 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useUser, UserButton } from "@clerk/nextjs";
+import { UserButton } from "@clerk/nextjs";
 import { NotificationsBell } from "@/components/layout/notifications-bell";
 import { ThemeToggle } from "@/components/providers/theme-toggle";
 import { cn } from "@/lib/utils";
 
-function greeting() {
-  const h = new Date().getHours();
-  if (h < 12) return "Bom dia";
-  if (h < 18) return "Boa tarde";
-  return "Boa noite";
-}
-
 export function Topbar({ title, subtitle }: { title: string; subtitle?: string }) {
-  const { user } = useUser();
-  const firstName = user?.firstName || user?.username || null;
   const [scrolled, setScrolled] = useState(false);
   const headerRef = useRef<HTMLElement>(null);
 
@@ -41,21 +32,23 @@ export function Topbar({ title, subtitle }: { title: string; subtitle?: string }
           scrolled ? "py-2.5" : "py-3.5",
         )}
       >
+        {/* Só o título e o contexto da tela.
+            Antes havia uma saudação ("Boa noite, Davi") empilhada acima do
+            título: três blocos de texto dentro de uma pílula, sendo que o nome
+            já aparece no rodapé da barra lateral e a hora do dia não ajuda a
+            decidir nada. */}
         <div className="min-w-0">
-          {!scrolled && (
-            <p className="text-xs font-medium text-ink-muted">
-              {firstName ? `${greeting()}, ${firstName}` : greeting()}
-            </p>
-          )}
           <h1
             className={cn(
-              "truncate font-semibold tracking-tight transition-all",
-              scrolled ? "text-base" : "mt-0.5 text-xl",
+              "truncate font-semibold leading-tight tracking-tight transition-all",
+              scrolled ? "text-base" : "text-xl",
             )}
           >
             {title}
           </h1>
-          {!scrolled && subtitle && <p className="mt-0.5 text-sm text-ink-muted">{subtitle}</p>}
+          {!scrolled && subtitle && (
+            <p className="mt-0.5 truncate text-sm text-ink-muted">{subtitle}</p>
+          )}
         </div>
 
         <div className="flex shrink-0 items-center gap-2.5">
