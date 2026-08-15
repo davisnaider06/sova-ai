@@ -250,48 +250,8 @@ export const topProductsByGmv = [...trendingProducts]
   .map((p) => ({ ...p, gmv: Math.round(p.price * p.sales30d) }))
   .sort((a, b) => b.gmv - a.gmv);
 
-export const plans = [
-  {
-    id: "starter",
-    name: "Starter",
-    price: 67,
-    tagline: "Pra quem está começando a vender",
-    features: [
-      "Pesquisa de produtos ilimitada",
-      "Roteiros de vídeo com IA (10/mês)",
-      "Dashboard de métricas essenciais",
-      "Suporte por comunidade",
-    ],
-  },
-  {
-    id: "pro",
-    name: "Pro",
-    price: 97,
-    tagline: "Para quem já vende e quer escalar",
-    highlighted: true,
-    features: [
-      "Tudo do Starter",
-      "Roteiros de vídeo com IA (ilimitado)",
-      "Análise de concorrência avançada",
-      "Influenciadores IA (3 avatares)",
-      "Inteligência de mercado em tempo real",
-      "Suporte prioritário",
-    ],
-  },
-  {
-    id: "elite",
-    name: "Elite",
-    price: 197,
-    tagline: "Para operações e agências",
-    features: [
-      "Tudo do Pro",
-      "Múltiplas lojas conectadas",
-      "Influenciadores IA ilimitados",
-      "Geração de página de vendas com IA",
-      "Gestor de conta dedicado",
-    ],
-  },
-];
+// Os planos saíram daqui para src/lib/plans.ts: preço é informação comercial
+// real, e não dado de demonstração.
 
 export function generateSalesPage(productId: string) {
   const product = trendingProducts.find((p) => p.id === productId) ?? trendingProducts[0];

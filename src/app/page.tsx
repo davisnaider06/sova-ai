@@ -20,8 +20,13 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Logo } from "@/components/brand/logo";
 import { HUBLA_CHECKOUT_URL } from "@/lib/checkout";
-import { plans } from "@/lib/mock-data";
-import { formatCurrencyBRL } from "@/lib/utils";
+import {
+  PLAN_FEATURES,
+  PLANS,
+  monthlyEquivalentCents,
+  savingsAgainstMonthly,
+} from "@/lib/plans";
+import { formatBRL } from "@/lib/money";
 
 const flow = [
   { label: "Live TikTok", icon: Video },
@@ -222,49 +227,86 @@ export default function LandingPage() {
           <div className="text-center">
             <p className="text-sm font-medium text-brand-ink">Planos</p>
             <h2 className="mt-2 text-3xl font-semibold tracking-tight md:text-4xl">
-              Comece agora com o preço de lançamento
+              Um acesso só. Você escolhe de quanto em quanto tempo paga.
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-ink-secondary">
-              Hoje quem entrar trava o valor promocional para sempre.
+              Todos os planos dão acesso à plataforma inteira. Períodos mais longos saem mais
+              barato por mês.
             </p>
           </div>
 
           <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-3">
-            {plans.map((plan) => (
-              <Card
-                key={plan.id}
-                className={
-                  plan.highlighted
-                    ? "relative border-brand-ink p-6 shadow-[0_0_0_1px_var(--brand)]"
-                    : "p-6"
-                }
-              >
-                {plan.highlighted && (
-                  <Badge className="absolute -top-3 left-6">Mais popular</Badge>
-                )}
-                <h3 className="text-lg font-semibold">{plan.name}</h3>
-                <p className="mt-1 text-sm text-ink-muted">{plan.tagline}</p>
-                <p className="mt-6 flex items-baseline gap-1">
-                  <span className="text-4xl font-semibold">{formatCurrencyBRL(plan.price)}</span>
-                  <span className="text-sm text-ink-muted">/mês</span>
-                </p>
-                <ul className="mt-6 space-y-3">
-                  {plan.features.map((f) => (
-                    <li key={f} className="flex items-start gap-2 text-sm text-ink-secondary">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-ink" />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-                <Button
-                  asChild
-                  className="mt-8 w-full"
-                  variant={plan.highlighted ? "default" : "outline"}
+            {PLANS.map((plan) => {
+              const economia = savingsAgainstMonthly(plan);
+              const porMes = monthlyEquivalentCents(plan);
+
+              return (
+                <Card
+                  key={plan.id}
+                  className={
+                    plan.highlighted
+                      ? "relative border-brand-ink p-6 shadow-[0_0_0_1px_var(--brand)]"
+                      : "p-6"
+                  }
                 >
-                  <Link href={HUBLA_CHECKOUT_URL}>Assinar {plan.name}</Link>
-                </Button>
-              </Card>
-            ))}
+                  {plan.highlighted && (
+                    <Badge className="absolute -top-3 left-6">Melhor valor</Badge>
+                  )}
+
+                  <h3 className="text-lg font-semibold">{plan.name}</h3>
+
+                  <p className="mt-5 flex items-baseline gap-1.5">
+                    <span className="text-4xl font-semibold">{formatBRL(plan.priceCents)}</span>
+                    <span className="text-sm text-ink-muted">
+                      {plan.months === 1 ? "/mês" : `à vista`}
+                    </span>
+                  </p>
+
+                  {/* O equivalente mensal é o que torna a comparação honesta:
+                      sem ele, R$ 597 parece caro ao lado de R$ 147. */}
+                  <p className="mt-1.5 text-sm text-ink-secondary">
+                    {plan.months === 1
+                      ? "Cobrado todo mês"
+                      : `Equivale a ${formatBRL(porMes)} por mês`}
+                  </p>
+
+                  {economia ? (
+                    <p className="mt-3 inline-flex rounded-full bg-brand/15 px-2.5 py-1 text-xs font-medium text-brand-ink">
+                      Economize {formatBRL(economia.cents)} ({economia.percent}%)
+                    </p>
+                  ) : (
+                    <p className="mt-3 inline-flex rounded-full bg-surface-2 px-2.5 py-1 text-xs text-ink-muted">
+                      Cancele quando quiser
+                    </p>
+                  )}
+
+                  <Button
+                    asChild
+                    className="mt-7 w-full"
+                    variant={plan.highlighted ? "default" : "outline"}
+                  >
+                    <Link href={plan.checkoutUrl}>Assinar {plan.name.toLowerCase()}</Link>
+                  </Button>
+                </Card>
+              );
+            })}
+          </div>
+
+          {/* Uma lista só: o que muda entre os planos é o período, não o que
+              você recebe. Repetir os mesmos itens em três cartões faria parecer
+              que existem três produtos. */}
+          <div className="mx-auto mt-12 max-w-3xl">
+            <p className="text-center text-sm font-medium text-ink-primary">
+              Todos os planos incluem
+            </p>
+            <ul className="mt-5 grid gap-3 sm:grid-cols-2">
+              {PLAN_FEATURES.map((f) => (
+                <li key={f} className="flex items-start gap-2 text-sm text-ink-secondary">
+                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-ink" />
+                  {f}
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       </section>
