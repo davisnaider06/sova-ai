@@ -20,7 +20,7 @@ export default function PrivacidadePage() {
       </p>
       <p>
         Ela vale para o site e para o aplicativo web da Sova. O controlador dos dados é a empresa
-        responsável pela Sova, contatável em <a href="mailto:privacidade@sova.ai">privacidade@sova.ai</a>.
+        responsável pela Sova, contatável em <a href="mailto:davisnaider06@gmail.com">davisnaider06@gmail.com</a>.
       </p>
 
       <h2>1. Dados que coletamos</h2>
@@ -173,7 +173,7 @@ export default function PrivacidadePage() {
       </p>
       <p>
         Para exercer qualquer um deles, escreva para{" "}
-        <a href="mailto:privacidade@sova.ai">privacidade@sova.ai</a>. Respondemos em até 15 dias.
+        <a href="mailto:davisnaider06@gmail.com">davisnaider06@gmail.com</a>. Respondemos em até 15 dias.
       </p>
       <p>
         A conexão com o TikTok é baseada no seu consentimento, e você pode retirá-lo sozinho a
@@ -207,7 +207,7 @@ export default function PrivacidadePage() {
 
       <p>
         Dúvidas sobre privacidade ou exercício de direitos:{" "}
-        <a href="mailto:privacidade@sova.ai">privacidade@sova.ai</a>.
+        <a href="mailto:davisnaider06@gmail.com">davisnaider06@gmail.com</a>.
       </p>
     </>
   );

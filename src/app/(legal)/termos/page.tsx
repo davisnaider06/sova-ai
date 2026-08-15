@@ -132,7 +132,7 @@ export default function TermosPage() {
       <h2>12. Contato</h2>
 
       <p>
-        Dúvidas sobre estes termos: <a href="mailto:contato@sova.ai">contato@sova.ai</a>.
+        Dúvidas sobre estes termos: <a href="mailto:atlasassessoria@gmail.com">atlasassessoria@gmail.com</a>.
       </p>
     </>
   );
