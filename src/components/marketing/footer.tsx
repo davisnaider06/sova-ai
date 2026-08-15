@@ -15,7 +15,7 @@ export function MarketingFooter() {
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-8 text-sm sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-8 text-sm sm:grid-cols-4">
             <div>
               <p className="mb-3 font-medium text-ink-primary">Produto</p>
               <ul className="space-y-2 text-ink-muted">
@@ -37,6 +37,16 @@ export function MarketingFooter() {
               <ul className="space-y-2 text-ink-muted">
                 <li><Link href="/login" className="hover:text-ink-primary">Entrar</Link></li>
                 <li><Link href="/signup" className="hover:text-ink-primary">Criar conta</Link></li>
+              </ul>
+            </div>
+            <div>
+              {/* O TikTok exige as duas URLs no cadastro da aplicação e checa se
+                  elas são alcançáveis a partir do site. Link quebrado aqui é
+                  motivo de recusa na revisão. */}
+              <p className="mb-3 font-medium text-ink-primary">Legal</p>
+              <ul className="space-y-2 text-ink-muted">
+                <li><Link href="/termos" className="hover:text-ink-primary">Termos de Serviço</Link></li>
+                <li><Link href="/privacidade" className="hover:text-ink-primary">Privacidade</Link></li>
               </ul>
             </div>
           </div>
