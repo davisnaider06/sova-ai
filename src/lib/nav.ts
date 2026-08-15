@@ -10,6 +10,7 @@ import {
   Radar,
   Receipt,
   Settings,
+  ShieldCheck,
   Users,
   Video,
   Wallet,
@@ -82,12 +83,16 @@ const SECONDARY: NavItem[] = [
   { href: "/dashboard/configuracoes", label: "Configurações", icon: Settings },
 ];
 
+/// Só administradores veem. Esconder o link não é a proteção — a rota chama
+/// `requireAdmin()` — mas mostrar um menu que leva a um redirect é ruído.
+const ADMIN: NavItem = { href: "/dashboard/admin", label: "Administração", icon: ShieldCheck };
+
 export function navFor(type: ProfileType): NavSection[] {
   return type === "SELLER" ? SELLER : CREATOR;
 }
 
-export function secondaryNav(): NavItem[] {
-  return SECONDARY;
+export function secondaryNav(isAdmin = false): NavItem[] {
+  return isAdmin ? [...SECONDARY, ADMIN] : SECONDARY;
 }
 
 /// Itens da barra inferior do mobile. O último slot é sempre "Menu", então

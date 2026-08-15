@@ -4,6 +4,12 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { creatorScope, profileScope, sellerScope } from "@/lib/scoped-db";
+import {
+  evaluateAccess,
+  findSubscriptionForUser,
+  isBootstrapAdmin,
+  linkSubscriptionByEmail,
+} from "@/lib/subscription";
 import type { Profile, ProfileType, User } from "@/generated/prisma";
 
 // ---------------------------------------------------------------------------
@@ -30,7 +36,25 @@ export async function ensureUser(): Promise<SessionUser | null> {
     where: { id: userId },
     include: { profiles: true },
   });
-  if (existing) return existing;
+  if (existing) {
+    // A conta pode ter nascido antes do pagamento cair. Se existe uma
+    // assinatura órfã com este e-mail, é agora que ela ganha dono — senão o
+    // cliente pagaria e continuaria batendo na porta.
+    await linkSubscriptionByEmail(existing.id, existing.email);
+
+    // Promoção de bootstrap também para conta que já existia. Sem isto, quem
+    // se cadastrou antes de ADMIN_EMAILS existir ficaria como membro comum —
+    // e, com o portão de assinatura ligado, trancado fora do próprio produto.
+    if (existing.role !== "ADMIN" && isBootstrapAdmin(existing.email)) {
+      return prisma.user.update({
+        where: { id: existing.id },
+        data: { role: "ADMIN" },
+        include: { profiles: true },
+      });
+    }
+
+    return existing;
+  }
 
   const clerkUser = await currentUser();
   if (!clerkUser) return null;
@@ -38,7 +62,7 @@ export async function ensureUser(): Promise<SessionUser | null> {
   const email = clerkUser.primaryEmailAddress?.emailAddress ?? clerkUser.emailAddresses[0]?.emailAddress;
   if (!email) return null;
 
-  return prisma.user.upsert({
+  const created = await prisma.user.upsert({
     where: { id: userId },
     update: {},
     create: {
@@ -46,14 +70,42 @@ export async function ensureUser(): Promise<SessionUser | null> {
       email,
       name: [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(" ") || null,
       avatarUrl: clerkUser.imageUrl || null,
+      // Bootstrap do administrador pelo ambiente. Sem isto, o primeiro admin
+      // teria que ser criado editando o banco na mão.
+      role: isBootstrapAdmin(email) ? "ADMIN" : "MEMBER",
     },
     include: { profiles: true },
   });
+
+  await linkSubscriptionByEmail(created.id, created.email);
+  return created;
 }
 
 export async function requireUser(): Promise<SessionUser> {
   const user = await ensureUser();
   if (!user) redirect("/login");
+  return user;
+}
+
+/// Exige assinatura ativa (ou papel de admin) para seguir.
+///
+/// É o portão do produto pago. Quem não tem vai para `/assinatura`, que explica
+/// a situação e leva ao checkout — em vez de um 403 seco, que só faria o
+/// cliente que acabou de pagar achar que perdeu o dinheiro.
+export async function requireSubscribedUser(): Promise<SessionUser> {
+  const user = await requireUser();
+  const subscription = await findSubscriptionForUser(user.id);
+
+  if (!evaluateAccess(user, subscription).allowed) {
+    redirect("/assinatura");
+  }
+  return user;
+}
+
+/// Exige papel de administrador. Usada pelas telas de faturamento e usuários.
+export async function requireAdmin(): Promise<SessionUser> {
+  const user = await requireUser();
+  if (user.role !== "ADMIN") redirect("/dashboard");
   return user;
 }
 
@@ -67,8 +119,12 @@ export function resolveActiveProfile(user: SessionUser): Profile | null {
 
 /// Usuário autenticado que ainda não escolheu papel vai para o onboarding.
 /// Sem perfil não existe nada para mostrar: todo dado do domínio pendura em Profile.
+///
+/// A checagem de assinatura vem antes da de perfil, e a ordem importa: quem não
+/// pagou não deveria nem passar pelo onboarding, senão preenche um cadastro
+/// inteiro para descobrir no fim que não tem acesso.
 export async function requireProfile(): Promise<{ user: SessionUser; profile: Profile }> {
-  const user = await requireUser();
+  const user = await requireSubscribedUser();
   const profile = resolveActiveProfile(user);
   if (!profile) redirect("/onboarding");
   return { user, profile };

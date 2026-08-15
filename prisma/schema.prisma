@@ -85,11 +85,117 @@ model User {
   /// dependência circular entre User e Profile na criação.
   activeProfileId String?
 
+  /// Papel na plataforma. Admin enxerga faturamento e gerencia usuários, e
+  /// entra sem assinatura — senão o dono ficaria trancado fora do próprio SaaS
+  /// no dia em que o gateway oscilasse.
+  role UserRole @default(MEMBER)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  profiles  Profile[]
-  auditLogs AuditLog[]
+  profiles     Profile[]
+  auditLogs    AuditLog[]
+  subscription Subscription?
+}
+
+enum UserRole {
+  MEMBER
+  ADMIN
+}
+
+// ===========================================================================
+// Assinatura (gateway externo: Hubla)
+// ===========================================================================
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE /// fatura falhou; ainda não expirou
+  CANCELED /// renovação desligada, mas o período pago continua valendo
+  EXPIRED
+}
+
+/// A assinatura de um cliente.
+///
+/// **A chave é o e-mail, não o `userId`.** O pagamento acontece na Hubla antes
+/// de a pessoa criar conta aqui — é a ordem natural do funil, e é a mesma da
+/// Netflix: paga, depois cadastra. Quando a conta nasce, `ensureUser()` procura
+/// uma assinatura com aquele e-mail e amarra as duas pontas.
+///
+/// Por isso `userId` é opcional: existe assinatura sem conta (pagou e ainda não
+/// se cadastrou), e isso é estado válido, não erro.
+model Subscription {
+  id     String  @id @default(cuid())
+  email  String  @unique
+  userId String? @unique
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  provider   String             @default("HUBLA")
+  externalId String? /// id da assinatura no gateway
+  status     SubscriptionStatus @default(ACTIVE)
+  planName   String?
+
+  startedAt        DateTime?
+  currentPeriodEnd DateTime?
+  canceledAt       DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  payments Payment[]
+
+  @@index([status])
+}
+
+/// Dinheiro que entrou, uma linha por fatura paga.
+///
+/// Guardado aqui em vez de somado do gateway sob demanda porque a página de
+/// faturamento precisa responder rápido e continuar respondendo se a Hubla
+/// estiver fora do ar. `externalId` único é o que impede uma reentrega de
+/// webhook de dobrar o faturamento do mês.
+model Payment {
+  id             String        @id @default(cuid())
+  subscriptionId String?
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  email      String
+  provider   String @default("HUBLA")
+  externalId String @unique
+
+  amountCents Int
+  currency    String    @default("BRL")
+  /// paid · refunded · failed
+  status      String    @default("paid")
+  paidAt      DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([paidAt])
+  @@index([email])
+}
+
+/// Log bruto do que o gateway mandou.
+///
+/// Existe por dois motivos. Idempotência: a Hubla manda um cabeçalho
+/// `x-hubla-idempotency`, e a constraint única aqui é o que garante que a
+/// mesma entrega processada duas vezes não vire dois pagamentos.
+///
+/// E depuração: a documentação pública da Hubla não publica o schema completo
+/// do payload. Guardar o corpo inteiro permite ajustar o parsing depois do
+/// primeiro evento real, sem ter que provocar uma venda nova para descobrir o
+/// formato.
+model WebhookEvent {
+  id             String  @id @default(cuid())
+  provider       String  @default("HUBLA")
+  eventType      String
+  idempotencyKey String? @unique
+
+  payload     Json
+  processedAt DateTime?
+  error       String?   @db.Text
+
+  receivedAt DateTime @default(now())
+
+  @@index([provider, eventType, receivedAt])
 }
 
 /// A atuação do usuário dentro da plataforma. É a âncora de identidade:
@@ -252,8 +358,8 @@ model TikTokVideo {
   title       String?
   description String? @db.Text
 
-  shareUrl  String?
-  embedLink String?
+  shareUrl      String?
+  embedLink     String?
   /// A doc avisa que este link expira em 6 horas. Guardamos por conveniência,
   /// mas nenhuma tela deve tratá-lo como permanente.
   coverImageUrl String?
@@ -262,7 +368,7 @@ model TikTokVideo {
   width           Int?
   height          Int?
   /// `create_time` do TikTok, que vem em segundos desde a época.
-  publishedAt DateTime?
+  publishedAt     DateTime?
 
   viewCount    Int @default(0)
   likeCount    Int @default(0)

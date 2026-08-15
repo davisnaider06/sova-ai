@@ -75,10 +75,12 @@ export function Sidebar({
   profiles = [],
   activeProfileId = null,
   activeType,
+  isAdmin = false,
 }: {
   profiles?: ProfileSummary[];
   activeProfileId?: string | null;
   activeType: ProfileType;
+  isAdmin?: boolean;
 }) {
   const pathname = usePathname();
   const { user } = useUser();
@@ -97,7 +99,7 @@ export function Sidebar({
   }
 
   const sections = navFor(activeType);
-  const secondary = secondaryNav();
+  const secondary = secondaryNav(isAdmin);
 
   const name = user?.fullName || user?.firstName || "Minha conta";
   const email = user?.primaryEmailAddress?.emailAddress || "";

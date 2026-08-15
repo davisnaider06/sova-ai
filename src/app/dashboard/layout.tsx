@@ -16,7 +16,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div className="flex h-screen overflow-hidden">
-      <Sidebar profiles={profiles} activeProfileId={profile.id} activeType={profile.type} />
+      <Sidebar
+        profiles={profiles}
+        activeProfileId={profile.id}
+        activeType={profile.type}
+        isAdmin={user.role === "ADMIN"}
+      />
       <div data-scroll-container className="flex flex-1 flex-col overflow-y-auto pb-20 lg:pb-0">
         {children}
       </div>
