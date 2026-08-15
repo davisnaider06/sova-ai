@@ -12,7 +12,12 @@ export function MobileNav({ activeType }: { activeType: ProfileType }) {
   const items = mobileNavFor(activeType);
 
   return (
-    <nav className="glass-surface fixed inset-x-0 bottom-0 z-40 flex items-center justify-around rounded-none border-x-0 border-b-0 px-2 py-2 lg:hidden">
+    <nav
+      className="glass-surface fixed inset-x-0 bottom-0 z-40 flex items-center justify-around rounded-none border-x-0 border-b-0 px-2 pt-2 lg:hidden"
+      // Instalado como PWA no iPhone, a barra de gestos fica por cima da nav.
+      // O padding acompanha a safe-area e vale zero onde ela não existe.
+      style={{ paddingBottom: "calc(0.5rem + env(safe-area-inset-bottom))" }}
+    >
       {items.map((item) => {
         const active = isNavItemActive(item.href, pathname);
         return (
@@ -28,7 +33,7 @@ export function MobileNav({ activeType }: { activeType: ProfileType }) {
             <span
               className={cn(
                 "flex h-9 w-9 items-center justify-center rounded-full",
-                active && "bg-selected text-selected-foreground",
+                active && "bg-brand text-brand-foreground",
               )}
             >
               <item.icon className="h-4 w-4" />
@@ -48,7 +53,10 @@ export function MobileNav({ activeType }: { activeType: ProfileType }) {
         <span
           className={cn(
             "flex h-9 w-9 items-center justify-center rounded-full",
-            isNavItemActive("/dashboard/configuracoes", pathname) && "bg-brand text-brand-foreground",
+            // Lima, igual aos demais itens desta barra. O preto do item ativo
+            // é exclusividade da barra lateral do desktop.
+            isNavItemActive("/dashboard/configuracoes", pathname) &&
+              "bg-brand text-brand-foreground",
           )}
         >
           <Menu className="h-4 w-4" />

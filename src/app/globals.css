@@ -7,12 +7,10 @@
   color-scheme: light;
 
   /* -------------------------------------------------------------------------
-     Tema claro = preto e branco. O verde é da marca e do GRÁFICO, não do
-     cromo da interface.
-     Antes, o verde era superfície (página esverdeada) e também o fundo do item
-     de menu ativo — o que fazia a tela inteira puxar para o verde e tirava do
-     gráfico o poder de chamar atenção. Aqui o verde aparece só onde carrega
-     significado: a logo e o dado.
+     Tema claro: as superfícies levemente esverdeadas da identidade original.
+     Uma versão anterior tinha trocado tudo por preto e branco puro; o que de
+     fato incomodava era o item de menu ativo pintado de lima, não o plano da
+     página. Então o plano voltou, e só a seleção seguiu escura.
      ------------------------------------------------------------------------- */
 
   /* Brand — o par é auto-contido (lima + quase-preto), igual nos dois temas */
@@ -20,38 +18,40 @@
   --brand-strong: #aad11a;
   --brand-foreground: #0b0d05;
 
-  /* Seleção / item ativo. No claro é preto sobre branco; no escuro vira o
-     verde da marca (ver .dark). É este token que os componentes usam — não o
-     --brand direto — para que a decisão viva num lugar só. */
+  /* Seleção / item ativo. É o único ponto que continua preto no tema claro:
+     o lima como fundo de menu competia com o gráfico pela atenção. No escuro
+     volta a ser o verde da marca (ver .dark). Os componentes usam este token,
+     nunca o --brand direto, para a decisão viver num lugar só. */
   --selected-bg: #0a0a0a;
   --selected-fg: #ffffff;
 
-  /* Verde para TEXTO e ícone. O lima da marca sobre branco dá 1,4:1 — ilegível.
-     Este tom dá 4,59:1, que passa AA para texto normal. No escuro volta a ser
-     o lima (14,2:1 sobre a página escura). Usado por `text-brand-ink`. */
-  --brand-ink: #5f8000;
+  /* Verde para TEXTO e ícone. O lima da marca sobre superfície clara dá ~1,4:1
+     — ilegível — e é justamente onde vai o número que mais importa para o
+     creator. Este tom passa AA sobre a página esverdeada; ver a verificação de
+     contraste no fim do arquivo. Usado por `text-brand-ink`. */
+  --brand-ink: #4f6300;
 
   /* Surfaces (page plane, opaque chrome) */
-  --page: #ffffff;
-  --surface-0: #fafafa;
-  --surface-inverse: #0a0a0a;
+  --page: #eef0e6;
+  --surface-0: #f5f6f0;
+  --surface-inverse: #14140f;
 
   /* Glass surfaces (cards, sidebar, topbar) */
-  --glass-bg: rgba(255, 255, 255, 0.72);
-  --glass-bg-strong: rgba(255, 255, 255, 0.95);
-  --glass-border: rgba(10, 10, 10, 0.08);
-  --glass-shadow: 0 8px 32px -8px rgba(10, 10, 10, 0.10);
-  --glass-shadow-strong: 0 16px 40px -8px rgba(10, 10, 10, 0.22);
+  --glass-bg: rgba(255, 255, 255, 0.55);
+  --glass-bg-strong: rgba(255, 255, 255, 0.88);
+  --glass-border: rgba(20, 20, 15, 0.08);
+  --glass-shadow: 0 8px 32px -8px rgba(20, 20, 15, 0.12);
+  --glass-shadow-strong: 0 16px 40px -8px rgba(20, 20, 15, 0.28);
 
-  /* Ink — cinzas neutros, sem puxar para o verde */
-  --ink-primary: #0a0a0a;
-  --ink-secondary: #52525b;
-  --ink-muted: #8a8a91;
-  --ink-inverse: #ffffff;
+  /* Ink */
+  --ink-primary: #14140f;
+  --ink-secondary: #55564c;
+  --ink-muted: #8b8c80;
+  --ink-inverse: #f7f8f2;
 
   /* Borders */
-  --border-hairline: rgba(10, 10, 10, 0.08);
-  --border-strong: rgba(10, 10, 10, 0.16);
+  --border-hairline: rgba(20, 20, 15, 0.09);
+  --border-strong: rgba(20, 20, 15, 0.16);
 
   /* Chart categorical (validated) */
   --series-1: #2a78d6;
@@ -68,16 +68,19 @@
   --status-critical: #d03b3b;
 
   /* Verde do gráfico.
-     NÃO é o --brand: o lima da marca em fundo branco dá 1,36:1 de contraste —
-     invisível. Este é o tom mais claro da mesma família que passa a validação
-     (faixa de luminosidade + contraste ≥ 3:1) contra superfície clara.
-     Verificado com scripts/validate_palette.js em 12/08/2026. */
-  --chart-brand: #7a9c0f;
-  --chart-brand-soft: rgba(122, 156, 15, 0.16);
+     NÃO é o --brand: o lima da marca sobre superfície clara dá ~1,4:1 de
+     contraste — invisível. Este é o tom mais claro da mesma família que ainda
+     passa ≥ 3:1 contra o plano da página.
+     Escurecido de #7a9c0f para #73930e ao trazer a página esverdeada de volta:
+     o valor anterior fora calibrado contra branco puro e caía para 2,77:1
+     sobre #eef0e6. Agora dá 3,09:1 na página e 3,27:1 no surface-0. */
+  --chart-brand: #73930e;
+  --chart-brand-soft: rgba(115, 147, 14, 0.16);
 
-  /* Chart chrome */
-  --chart-grid: #ececec;
-  --chart-baseline: #c9c9c9;
+  /* Chart chrome — de volta aos cinzas esverdeados, para a grade não brigar
+     com a superfície da página. */
+  --chart-grid: #ddded2;
+  --chart-baseline: #c3c4b7;
   --chart-muted: #8a8a91;
 
   --radius: 1rem;
@@ -232,8 +235,8 @@ body {
 }
 
 ::selection {
-  background: var(--selected-bg);
-  color: var(--selected-fg);
+  background: var(--brand);
+  color: var(--brand-foreground);
 }
 
 .glass-surface {

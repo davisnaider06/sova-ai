@@ -8,7 +8,7 @@ import {
   GraduationCap,
   Trophy,
   Wand2,
-  Link2,
+  Lock,
   BarChart3,
   Hash,
   Check,
@@ -18,7 +18,9 @@ import { MarketingFooter } from "@/components/marketing/footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { plans, trendingProducts } from "@/lib/mock-data";
+import { Logo } from "@/components/brand/logo";
+import { HUBLA_CHECKOUT_URL } from "@/lib/checkout";
+import { plans } from "@/lib/mock-data";
 import { formatCurrencyBRL } from "@/lib/utils";
 
 const flow = [
@@ -69,83 +71,96 @@ export default function LandingPage() {
     <div className="flex min-h-screen flex-col">
       <MarketingNavbar />
 
-      {/* Hero */}
-      <section className="relative overflow-hidden px-6 pb-20 pt-20 md:pt-28">
+      {/* ------------------------------------------------------------------
+          Hero em duas colunas: a marca de um lado, a porta de entrada do
+          outro. É a estrutura da referência — em vez de o visitante rolar
+          atrás de um botão, a ação fica ao lado da promessa desde o primeiro
+          quadro. Empilha no celular, com o cartão de acesso primeiro.
+          ------------------------------------------------------------------ */}
+      <section className="relative overflow-hidden px-6 pb-20 pt-14 md:pt-20">
         <div className="pointer-events-none absolute inset-0 -z-10">
-          <div className="absolute left-1/2 top-0 h-[500px] w-[900px] -translate-x-1/2 rounded-full bg-brand/10 blur-[120px]" />
+          <div className="absolute left-1/2 top-0 h-[500px] w-[900px] max-w-[140vw] -translate-x-1/2 rounded-full bg-brand/10 blur-[120px]" />
         </div>
 
-        <div className="mx-auto max-w-4xl text-center">
-          <Badge variant="subtle" className="mx-auto mb-6 w-fit">
-            <Sparkles className="h-3 w-3 text-brand-ink" />
-            Não vendemos software. Ensinamos como ganhar dinheiro na TikTok Shop.
-          </Badge>
+        <div className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-2 lg:gap-16">
+          {/* Coluna da marca */}
+          <div className="order-2 lg:order-1">
+            <Badge variant="subtle" className="mb-6 w-fit">
+              <Sparkles className="h-3 w-3 text-brand-ink" />
+              Método + ferramenta para TikTok Shop
+            </Badge>
 
-          <h1 className="text-balance text-4xl font-semibold leading-tight tracking-tight md:text-6xl">
-            Cole o link do produto.
-            <br />
-            <span className="text-brand-ink">A IA devolve tudo</span> em segundos.
-          </h1>
+            <h1 className="text-balance text-4xl font-semibold leading-tight tracking-tight md:text-5xl xl:text-6xl">
+              Cole o link do produto.
+              <br />
+              <span className="text-brand-ink">A IA devolve tudo</span> em segundos.
+            </h1>
 
-          <p className="mx-auto mt-6 max-w-2xl text-balance text-lg text-ink-secondary">
-            Volume de vendas, concorrência, margem, vídeos virais, hashtags, roteiro, legenda
-            e previsão de lucro — o método e a ferramenta que reduzem seu tempo de pesquisa,
-            criação e gestão na TikTok Shop.
-          </p>
+            <p className="mt-6 max-w-xl text-balance text-lg text-ink-secondary">
+              Volume de vendas, concorrência, margem, vídeos virais, hashtags, roteiro, legenda
+              e previsão de lucro — sem achismo e sem planilha.
+            </p>
 
-          <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Button asChild size="lg">
-              <Link href="/signup">
-                Testar grátis por 7 dias <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Button>
-            <Button asChild size="lg" variant="outline">
-              <Link href="/dashboard">Ver o dashboard</Link>
-            </Button>
+            <ul className="mt-8 grid gap-3 sm:grid-cols-2">
+              {analysisSteps.map((s) => (
+                <li
+                  key={s.label}
+                  className="flex items-center gap-2.5 text-sm text-ink-secondary"
+                >
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-surface-2">
+                    <s.icon className="h-4 w-4 text-brand-ink" />
+                  </span>
+                  {s.label}
+                </li>
+              ))}
+            </ul>
           </div>
-        </div>
 
-        {/* Product preview mock */}
-        <div className="mx-auto mt-16 max-w-5xl">
-          <Card className="overflow-hidden p-0">
-            <div className="flex items-center gap-2 border-b border-border-hairline px-5 py-3">
-              <span className="h-2.5 w-2.5 rounded-full bg-status-critical/70" />
-              <span className="h-2.5 w-2.5 rounded-full bg-status-warning/70" />
-              <span className="h-2.5 w-2.5 rounded-full bg-status-good/70" />
-              <span className="ml-3 flex items-center gap-2 rounded-full bg-surface-2 px-3 py-1 text-xs text-ink-muted">
-                <Link2 className="h-3 w-3" /> sova.ai/pesquisa
-              </span>
-            </div>
-            <div className="grid gap-4 p-6 md:grid-cols-2">
-              <div className="rounded-2xl border border-border-hairline bg-surface-2 p-5">
-                <p className="text-xs text-ink-muted">Link do produto</p>
-                <p className="mt-1 truncate text-sm text-ink-secondary">
-                  tiktokshop.com/produto/mini-massageador-pescoco
+          {/* Coluna de acesso */}
+          <div className="order-1 lg:order-2">
+            <Card className="p-6 sm:p-8">
+              <div className="flex items-center gap-3">
+                <Logo size={34} showWordmark={false} />
+                <div>
+                  <h2 className="text-lg font-semibold tracking-tight text-ink-primary">
+                    Acesse a Sova
+                  </h2>
+                  <p className="text-sm text-ink-muted">Entre para continuar vendendo</p>
+                </div>
+              </div>
+
+              <div className="mt-7 flex flex-col gap-3">
+                <Button asChild size="lg" className="w-full">
+                  <Link href={HUBLA_CHECKOUT_URL}>
+                    Assinar agora <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+                <Button asChild size="lg" variant="outline" className="w-full">
+                  <Link href="/login">Já sou assinante — entrar</Link>
+                </Button>
+              </div>
+
+              <div className="mt-6 flex items-start gap-2 rounded-xl bg-surface-2 px-3.5 py-3">
+                <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ink-muted" />
+                <p className="text-xs leading-relaxed text-ink-muted">
+                  O acesso à plataforma é exclusivo para assinantes. A assinatura é feita pela
+                  Hubla, e o pagamento acontece no ambiente seguro deles.
                 </p>
-                <div className="mt-4 grid grid-cols-2 gap-3">
-                  {analysisSteps.map((s) => (
-                    <div key={s.label} className="flex items-center gap-2 rounded-xl bg-surface-3 px-3 py-2 text-xs text-ink-secondary">
-                      <s.icon className="h-3.5 w-3.5 text-brand-ink" />
-                      {s.label}
-                    </div>
-                  ))}
-                </div>
               </div>
-              <div className="rounded-2xl bg-selected p-5 text-selected-foreground">
-                <p className="text-xs font-medium opacity-70">Opportunity Score</p>
-                <p className="mt-1 text-4xl font-semibold">{trendingProducts[1].opportunityScore}</p>
-                <p className="mt-1 text-sm opacity-80">{trendingProducts[1].name}</p>
-                <div className="mt-4 flex items-center justify-between text-xs">
-                  <span>Margem estimada</span>
-                  <span className="font-semibold">{trendingProducts[1].margin}%</span>
-                </div>
-                <div className="mt-1 flex items-center justify-between text-xs">
-                  <span>Preço sugerido</span>
-                  <span className="font-semibold">{formatCurrencyBRL(trendingProducts[1].price)}</span>
-                </div>
-              </div>
-            </div>
-          </Card>
+
+              <p className="mt-5 text-center text-xs leading-relaxed text-ink-muted">
+                Ao continuar, você concorda com os{" "}
+                <Link href="/termos" className="text-brand-ink underline underline-offset-2">
+                  Termos de Serviço
+                </Link>{" "}
+                e a{" "}
+                <Link href="/privacidade" className="text-brand-ink underline underline-offset-2">
+                  Política de Privacidade
+                </Link>
+                .
+              </p>
+            </Card>
+          </div>
         </div>
       </section>
 
@@ -190,7 +205,7 @@ export default function LandingPage() {
           <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
             {ecosystem.map((item) => (
               <Card key={item.title} className="p-5">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-selected/10">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand/15">
                   <item.icon className="h-5 w-5 text-brand-ink" />
                 </div>
                 <h3 className="mt-4 text-sm font-semibold text-ink-primary">{item.title}</h3>
@@ -246,7 +261,7 @@ export default function LandingPage() {
                   className="mt-8 w-full"
                   variant={plan.highlighted ? "default" : "outline"}
                 >
-                  <Link href="/signup">Assinar {plan.name}</Link>
+                  <Link href={HUBLA_CHECKOUT_URL}>Assinar {plan.name}</Link>
                 </Button>
               </Card>
             ))}
@@ -265,8 +280,8 @@ export default function LandingPage() {
             da execução e da consistência de cada vendedor.
           </p>
           <Button asChild size="lg" className="mt-8">
-            <Link href="/signup">
-              Começar agora <ArrowRight className="h-4 w-4" />
+            <Link href={HUBLA_CHECKOUT_URL}>
+              Assinar agora <ArrowRight className="h-4 w-4" />
             </Link>
           </Button>
         </Card>

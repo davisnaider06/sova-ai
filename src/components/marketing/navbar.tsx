@@ -3,6 +3,7 @@ import { Show, UserButton } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/brand/logo";
 import { ThemeToggle } from "@/components/providers/theme-toggle";
+import { HUBLA_CHECKOUT_URL } from "@/lib/checkout";
 
 export function MarketingNavbar() {
   return (
@@ -43,8 +44,11 @@ export function MarketingNavbar() {
             <Button asChild variant="ghost" size="sm">
               <Link href="/login">Entrar</Link>
             </Button>
+            {/* Vai para o checkout da Hubla, não para /signup: o acesso é de
+                assinante, e mandar o visitante criar conta antes de pagar
+                produz cadastro que não consegue usar nada. */}
             <Button asChild size="sm">
-              <Link href="/signup">Começar agora</Link>
+              <Link href={HUBLA_CHECKOUT_URL}>Assinar</Link>
             </Button>
           </Show>
         </div>

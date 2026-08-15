@@ -195,7 +195,7 @@ export function Sidebar({
         >
           <Avatar>
             <AvatarImage src={user?.imageUrl} alt={name} />
-            <AvatarFallback className="bg-selected/10 text-ink-primary">{initials}</AvatarFallback>
+            <AvatarFallback className="bg-brand/15 text-brand-ink">{initials}</AvatarFallback>
           </Avatar>
           {!collapsed && (
             <div className="min-w-0 flex-1">

@@ -38,7 +38,7 @@ function SwitchButton({
       className={cn(
         "flex w-full items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors",
         active
-          ? "bg-selected text-selected-foreground"
+          ? "bg-brand text-brand-foreground"
           : "text-ink-muted hover:bg-surface-3 hover:text-ink-primary",
         pending && "opacity-60",
       )}
