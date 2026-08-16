@@ -18,16 +18,24 @@ export type Plan = {
   priceCents: number;
   /// Quantos meses o pagamento cobre. É daqui que sai o equivalente mensal.
   months: number;
+  /// Como o período aparece ao lado do preço. Igual ao que a Hubla mostra no
+  /// checkout — o cliente não pode ver "à vista" aqui e "/trimestre" lá.
+  periodLabel: string;
   highlighted?: boolean;
   checkoutUrl: string;
 };
 
+// ⚠️ Os três apontam para o mesmo link porque só existe um endereço de
+// checkout conhecido. Na Hubla há três planos separados (Mensal, Trimestral e
+// Anual), e cada um tem o seu próprio link — trocar aqui é a única coisa que
+// falta para o botão levar ao plano certo.
 export const PLANS: Plan[] = [
   {
     id: "mensal",
     name: "Mensal",
     priceCents: 14700,
     months: 1,
+    periodLabel: "/mês",
     checkoutUrl: HUBLA_CHECKOUT_URL,
   },
   {
@@ -35,6 +43,7 @@ export const PLANS: Plan[] = [
     name: "Trimestral",
     priceCents: 29700,
     months: 3,
+    periodLabel: "/trimestre",
     checkoutUrl: HUBLA_CHECKOUT_URL,
   },
   {
@@ -42,6 +51,7 @@ export const PLANS: Plan[] = [
     name: "Anual",
     priceCents: 59700,
     months: 12,
+    periodLabel: "/ano",
     highlighted: true,
     checkoutUrl: HUBLA_CHECKOUT_URL,
   },

@@ -111,7 +111,11 @@ export const ensureUser = cache(async (): Promise<SessionUser | null> => {
 
 export async function requireUser(): Promise<SessionUser> {
   const user = await ensureUser();
-  if (!user) redirect("/login");
+  // Visitante que digita /dashboard na barra de endereço vai para a landing, e
+  // não direto para o formulário de login: quem chega sem sessão normalmente
+  // não conhece o produto ainda, e uma tela de senha não explica nada nem
+  // oferece o caminho de assinar.
+  if (!user) redirect("/");
   return user;
 }
 

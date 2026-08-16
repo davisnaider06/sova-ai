@@ -257,9 +257,7 @@ export default function LandingPage() {
 
                   <p className="mt-5 flex items-baseline gap-1.5">
                     <span className="text-4xl font-semibold">{formatBRL(plan.priceCents)}</span>
-                    <span className="text-sm text-ink-muted">
-                      {plan.months === 1 ? "/mês" : `à vista`}
-                    </span>
+                    <span className="text-sm text-ink-muted">{plan.periodLabel}</span>
                   </p>
 
                   {/* O equivalente mensal é o que torna a comparação honesta:
