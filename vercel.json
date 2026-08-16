@@ -1,5 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "//": "gru1 = São Paulo. O banco Neon está em sa-east-1 (São Paulo); sem isto as funções rodariam em Washington por padrão e cada consulta atravessaria o hemisfério — ~120ms por ida e volta, multiplicado por toda query da página.",
+  "regions": ["gru1"],
   "crons": [
     {
       "path": "/api/cron/jobs",

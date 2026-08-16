@@ -22,10 +22,14 @@ export default async function ProdutoPage({
   const { id } = await params;
   const { scope } = await requireSellerScope();
 
-  const product = await scope.products.findByIdWithEconomics(id);
+  // Em paralelo, não em série: as duas consultas são independentes, e esperar
+  // a primeira para só então pedir a segunda dobrava a espera. No caso de id
+  // inexistente gastamos uma consulta à toa — que devolve vazio e é rara.
+  const [product, affiliations] = await Promise.all([
+    scope.products.findByIdWithEconomics(id),
+    scope.affiliations.listForProduct(id),
+  ]);
   if (!product) notFound();
-
-  const affiliations = await scope.affiliations.listForProduct(id);
 
   const priceCents = toCents(product.price);
   const economics = product.economics;

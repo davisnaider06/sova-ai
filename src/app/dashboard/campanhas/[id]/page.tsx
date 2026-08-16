@@ -20,12 +20,16 @@ export default async function CampanhaPage({
   const { id } = await params;
   const { scope } = await requireSellerScope();
 
-  const campaign = await scope.campaigns.findByIdWithRelations(id);
+  // Em paralelo: a lista de produtos do seller não depende da campanha, e
+  // encadear as duas dobrava a espera desta tela.
+  //
+  // Todos os produtos do seller alimentam o seletor de vínculo. Marcados os que
+  // já estão na campanha — é mais direto que uma busca separada de "adicionar".
+  const [campaign, products] = await Promise.all([
+    scope.campaigns.findByIdWithRelations(id),
+    scope.products.findMany({ orderBy: { name: "asc" } }),
+  ]);
   if (!campaign) notFound();
-
-  // Todos os produtos do seller, para o seletor de vínculo. Marcados os que já
-  // estão na campanha — é mais direto que uma busca separada de "adicionar".
-  const products = await scope.products.findMany({ orderBy: { name: "asc" } });
   const linkedIds = new Set(campaign.products.map((cp) => cp.productId));
 
   const metrics = (await loadCampaignMetrics([campaign.id])).get(campaign.id);
