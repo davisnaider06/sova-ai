@@ -1,711 +1,379 @@
-// ---------------------------------------------------------------------------
 // Seed de demonstração.
 //
-// Constrói um marketplace inteiro e coerente: sellers com produtos e custos,
-// creators com nichos e audiência, afiliações em vários estados, conteúdo
-// publicado, pedidos e comissões.
+//   npx prisma db seed
 //
-// Duas decisões que importam:
+// **Apaga tudo e recria.** É um seed de vitrine, para olhar as telas com dado
+// plausível — não um seed incremental.
 //
-// 1. **A atribuição dos pedidos usa `decideAttribution`, a mesma função da
-//    aplicação.** Gerar as comissões com uma regra paralela aqui produziria uma
-//    demonstração que não bate com o que o software faz — e é assim que se
-//    apresenta um número que some quando o cliente clica.
-//
-// 2. **Usuários de demonstração têm id com prefixo `demo_`.** O id de User é o
-//    id do Clerk (`user_...`). O prefixo separado garante que nenhum registro
-//    fabricado aqui colida com uma conta real.
-//
-// Uso:
-//   npx prisma db seed                          → só o ecossistema de demonstração
-//   SEED_USER_ID=user_xxx npx prisma db seed    → e também dá os dois papéis a você
-//
-// O id do Clerk está em Clerk > Users. Rodar de novo é seguro: tudo é upsert
-// por chave estável, e os pedidos são idempotentes por externalOrderId.
-// ---------------------------------------------------------------------------
+// O ponto delicado: `User.id` **é** o id do Clerk. Inventar um id aqui faria o
+// `ensureUser()` tentar criar outra linha no primeiro login e bater na
+// constraint de e-mail único — a conta ficaria quebrada de um jeito difícil de
+// diagnosticar. Por isso o id do dono vem de `OWNER_CLERK_ID`, lido do painel
+// do Clerk, e não de um cuid gerado.
 
 import { PrismaClient, Prisma } from "../src/generated/prisma";
 import { PrismaNeon } from "@prisma/adapter-neon";
-import { decideAttribution } from "../src/lib/attribution";
+
+const OWNER_EMAIL = "davisnaider06@gmail.com";
+const OWNER_CLERK_ID = process.env.OWNER_CLERK_ID ?? "user_3HjRZLr99MbzJ5T7SkhBlmackAN";
 
 const dec = (n: number) => new Prisma.Decimal(n.toFixed(2));
 const rate = (n: number) => new Prisma.Decimal(n.toFixed(4));
+const dias = (n: number) => new Date(Date.now() - n * 86_400_000);
 
-const DAY = 86_400_000;
-const daysAgo = (n: number) => new Date(Date.now() - n * DAY);
+/// Aleatoriedade com semente fixa: o seed roda duas vezes e produz os mesmos
+/// números. Sem isso, comparar duas execuções de uma tela vira adivinhação.
+let semente = 42;
+function rnd() {
+  semente = (semente * 1664525 + 1013904223) % 4294967296;
+  return semente / 4294967296;
+}
+const entre = (a: number, b: number) => Math.floor(rnd() * (b - a + 1)) + a;
+const escolha = <T,>(xs: T[]): T => xs[Math.floor(rnd() * xs.length)];
 
-// --- Catálogo de demonstração ---------------------------------------------
-
-type SeedProduct = {
-  key: string;
-  name: string;
-  description: string;
-  category: string;
-  price: number;
-  cost: number;
-  shipping: number;
-  feeRate: number;
-};
-
-type SeedSeller = {
-  key: string;
-  name: string;
-  company: string;
-  products: SeedProduct[];
-};
-
-const SELLERS: SeedSeller[] = [
-  {
-    key: "nutri",
-    name: "NutriForce",
-    company: "NutriForce Suplementos LTDA",
-    products: [
-      {
-        key: "creatina",
-        name: "Creatina Monohidratada 300g",
-        description:
-          "Creatina pura, sem sabor, com laudo de pureza. Para quem treina forte e quer resultado consistente.",
-        category: "Saúde e suplementos",
-        price: 129.9,
-        cost: 48,
-        shipping: 14,
-        feeRate: 0.06,
-      },
-      {
-        key: "whey",
-        name: "Whey Protein Concentrado 900g",
-        description: "24g de proteína por dose, sabor baunilha. Dissolve fácil e não empelota.",
-        category: "Saúde e suplementos",
-        price: 189.9,
-        cost: 82,
-        shipping: 18,
-        feeRate: 0.06,
-      },
-      {
-        key: "colageno",
-        name: "Colágeno Verisol + Vitamina C",
-        description: "Colágeno hidrolisado com vitamina C para pele, cabelo e unhas. 30 doses.",
-        category: "Beleza e cuidados pessoais",
-        price: 97.0,
-        cost: 34,
-        shipping: 12,
-        feeRate: 0.06,
-      },
-    ],
-  },
-  {
-    key: "casa",
-    name: "Casa Viva",
-    company: "Casa Viva Utilidades ME",
-    products: [
-      {
-        key: "organizador",
-        name: "Kit 6 Organizadores de Geladeira",
-        description: "Transparentes, empilháveis, livres de BPA. Cabe em qualquer prateleira.",
-        category: "Casa e cozinha",
-        price: 79.9,
-        cost: 27,
-        shipping: 16,
-        feeRate: 0.05,
-      },
-      {
-        key: "panela",
-        name: "Panela Antiaderente 24cm Indução",
-        description: "Revestimento cerâmico, funciona em indução. Não solta o antiaderente.",
-        category: "Casa e cozinha",
-        price: 159.9,
-        cost: 71,
-        shipping: 22,
-        feeRate: 0.05,
-      },
-    ],
-  },
-  {
-    key: "glow",
-    name: "Glow Lab",
-    company: "Glow Lab Cosméticos",
-    products: [
-      {
-        key: "serum",
-        name: "Sérum Facial Vitamina C 30ml",
-        description: "10% de vitamina C estabilizada. Uniformiza o tom sem irritar pele sensível.",
-        category: "Beleza e cuidados pessoais",
-        price: 119.9,
-        cost: 31,
-        shipping: 10,
-        feeRate: 0.06,
-      },
-      {
-        key: "protetor",
-        name: "Protetor Solar Facial FPS 60 Toque Seco",
-        description: "Não deixa a pele oleosa e não marca de branco. Serve de base para maquiagem.",
-        category: "Beleza e cuidados pessoais",
-        price: 89.9,
-        cost: 29,
-        shipping: 10,
-        feeRate: 0.06,
-      },
-    ],
-  },
-];
-
-type SeedCreator = {
-  key: string;
-  name: string;
-  bio: string;
-  niches: string[];
-  followers: number;
-  avgViews: number;
-  engagement: number;
-};
-
-const CREATORS: SeedCreator[] = [
-  {
-    key: "joana",
-    name: "Joana Fit",
-    bio: "Treino e suplementação para quem está começando. Sem fórmula mágica.",
-    niches: ["Saúde e suplementos", "Fitness e esportes"],
-    followers: 128_000,
-    avgViews: 42_000,
-    engagement: 0.058,
-  },
-  {
-    key: "marcos",
-    name: "Marcos Treina",
-    bio: "Powerlifting e nutrição esportiva. Vídeos de bastidores de treino.",
-    niches: ["Fitness e esportes", "Saúde e suplementos"],
-    followers: 54_000,
-    avgViews: 18_000,
-    engagement: 0.041,
-  },
-  {
-    key: "bia",
-    name: "Bia Skincare",
-    bio: "Rotina de skin care sem enrolação, para pele oleosa e sensível.",
-    niches: ["Beleza e cuidados pessoais"],
-    followers: 216_000,
-    avgViews: 88_000,
-    engagement: 0.062,
-  },
-  {
-    key: "carol",
-    name: "Carol Organiza",
-    bio: "Organização de casa em apartamento pequeno. Antes e depois todo sábado.",
-    niches: ["Casa e cozinha"],
-    followers: 74_000,
-    avgViews: 31_000,
-    engagement: 0.049,
-  },
-  {
-    key: "rafa",
-    name: "Rafa Cozinha",
-    bio: "Receita rápida pra quem chega cansado. Panela suja é permitida.",
-    niches: ["Casa e cozinha", "Alimentos e bebidas"],
-    followers: 31_000,
-    avgViews: 12_000,
-    engagement: 0.037,
-  },
-  {
-    key: "novato",
-    name: "Pedro Começando",
-    bio: "Comecei essa semana. Bora aprender junto.",
-    niches: ["Saúde e suplementos"],
-    followers: 1_800,
-    avgViews: 600,
-    engagement: 0.071,
-  },
-];
-
-// Afiliações: [creator, produto, status, taxa]
-const AFFILIATIONS: Array<[string, string, "ACTIVE" | "PENDING" | "PAUSED" | "REJECTED", number]> = [
-  ["joana", "creatina", "ACTIVE", 0.2],
-  ["joana", "whey", "ACTIVE", 0.18],
-  ["marcos", "whey", "ACTIVE", 0.18],
-  ["marcos", "creatina", "PENDING", 0.2],
-  ["bia", "serum", "ACTIVE", 0.25],
-  ["bia", "protetor", "ACTIVE", 0.22],
-  ["bia", "colageno", "ACTIVE", 0.2],
-  ["carol", "organizador", "ACTIVE", 0.18],
-  ["carol", "panela", "PENDING", 0.15],
-  ["rafa", "panela", "ACTIVE", 0.15],
-  ["novato", "creatina", "PENDING", 0.2],
-  ["rafa", "organizador", "REJECTED", 0.18],
-];
-
-// Conteúdo: [creator, produto, dias atrás, título]
-const CONTENTS: Array<[string, string, number, string]> = [
-  ["joana", "creatina", 22, "Como eu tomo creatina todo dia (e o que mudou)"],
-  ["joana", "creatina", 6, "Respondendo as dúvidas de creatina de vocês"],
-  ["joana", "whey", 12, "Meu shake pós-treino de 2 minutos"],
-  ["marcos", "whey", 9, "Testei o whey mais barato que achei"],
-  ["bia", "serum", 15, "Vitamina C: como usar sem descamar a pele"],
-  ["bia", "serum", 3, "1 mês usando vitamina C — antes e depois"],
-  ["bia", "protetor", 8, "Protetor solar que não marca de branco"],
-  ["carol", "organizador", 11, "Organizei a geladeira inteira em 20 minutos"],
-  ["rafa", "panela", 5, "Panela de indução barata funciona? testei"],
-];
-
-// Pedidos: [produto, dias atrás, quantidade, status, creator declarado ou null]
-const ORDERS: Array<[string, number, number, string, string | null]> = [
-  ["creatina", 20, 1, "DELIVERED", "Joana Fit"],
-  ["creatina", 18, 2, "DELIVERED", "Joana Fit"],
-  ["creatina", 14, 1, "DELIVERED", null],
-  ["creatina", 5, 1, "DELIVERED", "Joana Fit"],
-  ["creatina", 4, 3, "DELIVERED", "Joana Fit"],
-  ["creatina", 2, 1, "SHIPPED", "Joana Fit"],
-  ["whey", 19, 1, "DELIVERED", "Joana Fit"],
-  ["whey", 11, 1, "DELIVERED", "Joana Fit"],
-  ["whey", 8, 2, "DELIVERED", "Marcos Treina"],
-  ["whey", 7, 1, "DELIVERED", "Marcos Treina"],
-  ["whey", 3, 1, "CONFIRMED", "Marcos Treina"],
-  ["serum", 16, 1, "DELIVERED", "Bia Skincare"],
-  ["serum", 13, 2, "DELIVERED", "Bia Skincare"],
-  ["serum", 12, 1, "DELIVERED", "Bia Skincare"],
-  ["serum", 2, 4, "DELIVERED", "Bia Skincare"],
-  ["serum", 1, 2, "CONFIRMED", "Bia Skincare"],
-  ["protetor", 7, 1, "DELIVERED", "Bia Skincare"],
-  ["protetor", 6, 3, "DELIVERED", "Bia Skincare"],
-  ["colageno", 10, 1, "DELIVERED", null],
-  ["organizador", 10, 2, "DELIVERED", "Carol Organiza"],
-  ["organizador", 9, 1, "DELIVERED", "Carol Organiza"],
-  ["organizador", 4, 1, "DELIVERED", "Carol Organiza"],
-  ["panela", 4, 1, "DELIVERED", "Rafa Cozinha"],
-  ["panela", 3, 1, "SHIPPED", null],
-  ["panela", 21, 1, "CANCELLED", null],
-
-  // Os dois casos que a atribuição precisa saber recusar — sem eles a
-  // demonstração passa a impressão de que tudo sempre tem dono.
-  //
-  // Empate: whey tem Joana e Marcos ativos, e nesta data nenhum dos dois tinha
-  // publicado ainda. Fica sem atribuição, para decisão manual.
-  ["whey", 25, 1, "DELIVERED", null],
-  // Venda anterior a qualquer afiliação: orgânica de verdade.
-  ["colageno", 34, 1, "DELIVERED", null],
+const CATALOGO = [
+  { nome: "Mini massageador de pescoço", cat: "Saúde e suplementos", preco: 79.9, custo: 28 },
+  { nome: "Creatina monohidratada 300g", cat: "Saúde e suplementos", preco: 129.9, custo: 52 },
+  { nome: "Kit skincare vitamina C", cat: "Beleza e cuidados pessoais", preco: 89.9, custo: 31 },
+  { nome: "Luminária de mesa LED touch", cat: "Casa e cozinha", preco: 64.9, custo: 22 },
+  { nome: "Fone bluetooth esportivo", cat: "Eletrônicos e acessórios", preco: 149.9, custo: 58 },
+  { nome: "Legging alta compressão", cat: "Moda feminina", preco: 99.9, custo: 34 },
+  { nome: "Garrafa térmica 1L", cat: "Fitness e esportes", preco: 74.9, custo: 26 },
+  { nome: "Organizador de gaveta 6 peças", cat: "Casa e cozinha", preco: 49.9, custo: 16 },
 ];
 
 async function main() {
   const connectionString = process.env.DATABASE_URL;
-  if (!connectionString) {
-    throw new Error("Configure DATABASE_URL em .env.local antes de rodar o seed.");
-  }
+  if (!connectionString) throw new Error("Configure DATABASE_URL em .env.local.");
 
   const prisma = new PrismaClient({ adapter: new PrismaNeon({ connectionString }) });
 
-  // --- Sellers e produtos -------------------------------------------------
-  const sellerIds = new Map<string, string>();
-  const productIds = new Map<string, string>();
+  // --- Limpeza ------------------------------------------------------------
+  // Ordem importa: filhos antes dos pais, porque nem toda FK é Cascade.
+  console.log("Limpando...");
+  await prisma.commission.deleteMany();
+  await prisma.orderItem.deleteMany();
+  await prisma.order.deleteMany();
+  await prisma.contentPerformance.deleteMany();
+  await prisma.content.deleteMany();
+  await prisma.campaignCreator.deleteMany();
+  await prisma.campaignProduct.deleteMany();
+  await prisma.campaign.deleteMany();
+  await prisma.affiliation.deleteMany();
+  await prisma.productEconomics.deleteMany();
+  await prisma.product.deleteMany();
+  await prisma.tikTokVideo.deleteMany();
+  await prisma.externalAccount.deleteMany();
+  await prisma.profileMetric.deleteMany();
+  await prisma.event.deleteMany();
+  await prisma.auditLog.deleteMany();
+  await prisma.payment.deleteMany();
+  await prisma.subscription.deleteMany();
+  await prisma.webhookEvent.deleteMany();
+  await prisma.job.deleteMany();
+  await prisma.creatorProfile.deleteMany();
+  await prisma.sellerProfile.deleteMany();
+  await prisma.profile.deleteMany();
+  await prisma.user.deleteMany();
 
-  for (const seller of SELLERS) {
-    const userId = `demo_seller_${seller.key}`;
-
-    await prisma.user.upsert({
-      where: { id: userId },
-      update: {},
-      create: { id: userId, email: `${seller.key}@demo.sova.ai`, name: seller.name },
-    });
-
-    const profile = await prisma.profile.upsert({
-      where: { userId_type: { userId, type: "SELLER" } },
-      update: { displayName: seller.name },
-      create: {
-        userId,
-        type: "SELLER",
-        displayName: seller.name,
-        sellerProfile: { create: { companyName: seller.company, businessType: "Marca própria" } },
-      },
-      include: { sellerProfile: true },
-    });
-
-    const sellerProfileId = profile.sellerProfile!.id;
-    sellerIds.set(seller.key, sellerProfileId);
-
-    for (const p of seller.products) {
-      const product = await prisma.product.upsert({
-        where: {
-          source_externalProductId: { source: "MANUAL", externalProductId: `demo-${p.key}` },
-        },
-        update: { price: dec(p.price), status: "ACTIVE" },
+  // --- Dono ---------------------------------------------------------------
+  console.log("Criando o dono...");
+  const dono = await prisma.user.create({
+    data: {
+      id: OWNER_CLERK_ID,
+      email: OWNER_EMAIL,
+      name: "Davi Snaider",
+      role: "ADMIN",
+      subscription: {
         create: {
-          sellerProfileId,
-          name: p.name,
-          description: p.description,
-          category: p.category,
-          price: dec(p.price),
-          stockQuantity: 250,
+          email: OWNER_EMAIL,
+          provider: "MANUAL",
           status: "ACTIVE",
-          source: "MANUAL",
-          externalProductId: `demo-${p.key}`,
-        },
-      });
-
-      productIds.set(p.key, product.id);
-
-      await prisma.productEconomics.upsert({
-        where: { productId: product.id },
-        update: {},
-        create: {
-          productId: product.id,
-          productCost: dec(p.cost),
-          shippingCost: dec(p.shipping),
-          platformFee: dec(p.price * p.feeRate),
-          operationalCost: dec(3),
-          minimumMargin: rate(0.12),
-          targetMargin: rate(0.25),
-        },
-      });
-    }
-  }
-
-  // --- Creators -----------------------------------------------------------
-  const creatorIds = new Map<string, string>();
-  const creatorNames = new Map<string, string>();
-
-  for (const c of CREATORS) {
-    const userId = `demo_creator_${c.key}`;
-
-    await prisma.user.upsert({
-      where: { id: userId },
-      update: {},
-      create: { id: userId, email: `${c.key}@demo.sova.ai`, name: c.name },
-    });
-
-    const profile = await prisma.profile.upsert({
-      where: { userId_type: { userId, type: "CREATOR" } },
-      update: { displayName: c.name },
-      create: {
-        userId,
-        type: "CREATOR",
-        displayName: c.name,
-        creatorProfile: {
-          create: {
-            bio: c.bio,
-            niches: c.niches,
-            followersCount: c.followers,
-            averageViews: c.avgViews,
-            engagementRate: rate(c.engagement),
-          },
+          planName: "Anual",
+          startedAt: dias(40),
+          currentPeriodEnd: dias(-325),
         },
       },
-      include: { creatorProfile: true },
-    });
-
-    const creatorProfileId = profile.creatorProfile!.id;
-    creatorIds.set(c.key, creatorProfileId);
-    creatorNames.set(c.key, c.name);
-
-    // Métricas com procedência: o que o creator declarou vale menos que o que
-    // seria medido. O seed grava isso explicitamente em vez de deixar implícito.
-    const existing = await prisma.profileMetric.count({
-      where: { profileId: profile.id, key: "followers" },
-    });
-    if (existing === 0) {
-      await prisma.profileMetric.createMany({
-        data: [
+      // Os dois papéis, para dar para alternar no switcher e ver as duas
+      // experiências sem criar uma segunda conta.
+      profiles: {
+        create: [
           {
-            profileId: profile.id,
-            key: "followers",
-            value: dec(c.followers),
-            unit: "seguidores",
-            source: "DECLARED",
-            confidence: rate(0.3),
-            calculationMethod: "informado no perfil",
+            type: "SELLER",
+            displayName: "Atlas Store",
+            sellerProfile: {
+              create: { companyName: "Atlas Assessoria", businessType: "MEI", sellerScore: dec(78) },
+            },
           },
           {
-            profileId: profile.id,
-            key: "avg_views",
-            value: dec(c.avgViews),
-            unit: "views",
-            source: "DECLARED",
-            confidence: rate(0.3),
-            calculationMethod: "informado no perfil",
+            type: "CREATOR",
+            displayName: "Davi Snaider",
+            creatorProfile: {
+              create: {
+                bio: "Testo produtos de casa e bem-estar e mostro o que realmente funciona.",
+                niches: ["Casa e cozinha", "Saúde e suplementos"],
+                followersCount: 28400,
+                engagementRate: new Prisma.Decimal("0.0620"),
+                averageViews: 18500,
+                creatorScore: dec(82),
+              },
+            },
           },
         ],
-      });
-    }
-  }
-
-  // --- Afiliações ---------------------------------------------------------
-  for (const [creatorKey, productKey, status, commissionRate] of AFFILIATIONS) {
-    const creatorProfileId = creatorIds.get(creatorKey)!;
-    const productId = productIds.get(productKey)!;
-
-    await prisma.affiliation.upsert({
-      where: { creatorProfileId_productId: { creatorProfileId, productId } },
-      update: {},
-      create: {
-        creatorProfileId,
-        productId,
-        commissionRate: rate(commissionRate),
-        status,
-        // Começa antes do pedido mais antigo, senão a atribuição descarta tudo
-        // por "afiliação não estava ativa na data".
-        startedAt: status === "PENDING" ? null : daysAgo(30),
       },
-    });
-  }
-
-  // --- Conteúdo -----------------------------------------------------------
-  for (const [creatorKey, productKey, days, title] of CONTENTS) {
-    const creatorProfileId = creatorIds.get(creatorKey)!;
-    const productId = productIds.get(productKey)!;
-    const externalContentId = `demo-${creatorKey}-${productKey}-${days}`;
-
-    await prisma.content.upsert({
-      where: { source_externalContentId: { source: "MANUAL", externalContentId } },
-      update: {},
-      create: {
-        creatorProfileId,
-        productId,
-        contentType: "VIDEO",
-        title,
-        url: `https://www.tiktok.com/@${creatorKey}/video/${7_400_000_000 + days}`,
-        publishedAt: daysAgo(days),
-        source: "MANUAL",
-        externalContentId,
-      },
-    });
-  }
-
-  // --- Pedidos, atribuição e comissões ------------------------------------
-  let ordersCreated = 0;
-  let commissionsCreated = 0;
-
-  for (const [index, [productKey, days, quantity, status, declaredCreator]] of ORDERS.entries()) {
-    const externalOrderId = `DEMO-${String(1000 + index)}`;
-
-    const already = await prisma.order.findUnique({
-      where: { source_externalOrderId: { source: "CSV_IMPORT", externalOrderId } },
-      select: { id: true },
-    });
-    if (already) continue;
-
-    const productId = productIds.get(productKey)!;
-    const product = await prisma.product.findUniqueOrThrow({
-      where: { id: productId },
-      select: { price: true, sellerProfileId: true },
-    });
-
-    const unitPrice = Number(product.price.toString());
-    const total = unitPrice * quantity;
-    const placedAt = daysAgo(days);
-
-    const candidates = await prisma.affiliation.findMany({
-      where: { productId },
-      select: {
-        id: true,
-        status: true,
-        startedAt: true,
-        endedAt: true,
-        commissionRate: true,
-        creatorProfileId: true,
-        creatorProfile: {
-          select: {
-            profile: { select: { displayName: true } },
-            contents: {
-              where: { productId, publishedAt: { not: null, lte: placedAt } },
-              orderBy: { publishedAt: "desc" },
-              take: 1,
-              select: { publishedAt: true },
-            },
-          },
-        },
-      },
-    });
-
-    // A MESMA função da aplicação decide. Se a regra mudar, a demonstração
-    // muda junto — que é o ponto.
-    const decision = decideAttribution({
-      placedAt,
-      declaredCreatorHandle: declaredCreator,
-      candidates: candidates.map((a) => ({
-        affiliationId: a.id,
-        creatorProfileId: a.creatorProfileId,
-        creatorHandle: a.creatorProfile.profile.displayName,
-        startedAt: a.startedAt,
-        endedAt: a.endedAt,
-        status: a.status,
-        lastContentAt: a.creatorProfile.contents[0]?.publishedAt ?? null,
-      })),
-    });
-
-    const attributed = candidates.find((a) => a.id === decision.affiliationId) ?? null;
-    const commissionRate = attributed ? Number(attributed.commissionRate.toString()) : 0;
-    const commissionCents = attributed ? Math.round(total * 100 * commissionRate) : 0;
-
-    await prisma.order.create({
-      data: {
-        sellerProfileId: product.sellerProfileId,
-        orderStatus: status as never,
-        paymentStatus: status === "CANCELLED" ? "FAILED" : "PAID",
-        totalAmount: dec(total),
-        creatorCommission: dec(commissionCents / 100),
-        netRevenue: dec(total - commissionCents / 100),
-        source: "CSV_IMPORT",
-        externalOrderId,
-        syncedAt: new Date(),
-        placedAt,
-        attributedAffiliationId: decision.affiliationId,
-        attributedAt: decision.affiliationId ? placedAt : null,
-        attributionWindowDays: decision.windowDays,
-        items: {
-          create: [
-            {
-              productId,
-              quantity,
-              unitPrice: dec(unitPrice),
-              totalAmount: dec(total),
-            },
-          ],
-        },
-        ...(attributed && commissionCents > 0 && status !== "CANCELLED"
-          ? {
-              commissions: {
-                create: {
-                  creatorProfileId: attributed.creatorProfileId,
-                  affiliationId: attributed.id,
-                  rate: rate(commissionRate),
-                  estimatedAmount: dec(commissionCents / 100),
-                  status: status === "DELIVERED" ? "APPROVED" : "PENDING",
-                },
-              },
-            }
-          : {}),
-      },
-    });
-
-    ordersCreated++;
-    if (attributed && commissionCents > 0 && status !== "CANCELLED") commissionsCreated++;
-  }
-
-  // --- Campanha de exemplo ------------------------------------------------
-  const glowSellerId = sellerIds.get("glow")!;
-  const existingCampaign = await prisma.campaign.findFirst({
-    where: { sellerProfileId: glowSellerId, name: "Verão — linha facial" },
-    select: { id: true },
+    },
+    include: { profiles: { include: { sellerProfile: true, creatorProfile: true } } },
   });
 
-  if (!existingCampaign) {
-    await prisma.campaign.create({
-      data: {
-        sellerProfileId: glowSellerId,
-        name: "Verão — linha facial",
-        description:
-          "Empurrar sérum e protetor juntos até o fim de janeiro, com comissão acima do padrão.",
-        status: "ACTIVE",
-        startAt: daysAgo(20),
-        endAt: daysAgo(-40),
-        commissionRate: rate(0.28),
-        targetSales: 300,
-        budget: dec(15_000),
-        products: {
-          create: [
-            { productId: productIds.get("serum")! },
-            { productId: productIds.get("protetor")! },
-          ],
-        },
-        creators: {
-          create: [{ creatorProfileId: creatorIds.get("bia")!, status: "ACCEPTED", acceptedAt: daysAgo(18) }],
-        },
-      },
-    });
-  }
+  const seller = dono.profiles.find((p) => p.type === "SELLER")!;
+  const creator = dono.profiles.find((p) => p.type === "CREATOR")!;
+  const sellerId = seller.sellerProfile!.id;
+  const creatorId = creator.creatorProfile!.id;
 
-  // --- Liga os pedidos existentes à campanha ------------------------------
-  //
-  // Os pedidos são criados antes da campanha, então precisam ser vinculados
-  // depois. Mesma regra da ingestão: só entra pedido de produto da campanha,
-  // dentro da janela dela — senão a campanha exibiria resultado que não gerou.
-  const campanha = await prisma.campaign.findFirst({
-    where: { sellerProfileId: glowSellerId, name: "Verão — linha facial" },
-    select: { id: true, startAt: true, endAt: true, products: { select: { productId: true } } },
+  // --- Métricas do creator, com procedência ------------------------------
+  await prisma.profileMetric.createMany({
+    data: [
+      { profileId: creator.id, key: "followers", value: dec(28400), unit: "seguidores", source: "DECLARED", confidence: new Prisma.Decimal("0.30") },
+      { profileId: creator.id, key: "avg_views", value: dec(18500), unit: "views", source: "DECLARED", confidence: new Prisma.Decimal("0.30") },
+      { profileId: creator.id, key: "gmv", category: "Casa e cozinha", value: dec(1284000), unit: "centavos", source: "PLATFORM", confidence: new Prisma.Decimal("0.95") },
+    ],
   });
 
-  if (campanha) {
-    const alvo = campanha.products.map((p) => p.productId);
-    const { count: vinculados } = await prisma.order.updateMany({
-      where: {
-        campaignId: null,
-        items: { some: { productId: { in: alvo } } },
-        ...(campanha.startAt ? { placedAt: { gte: campanha.startAt } } : {}),
-        ...(campanha.endAt ? { placedAt: { lte: campanha.endAt } } : {}),
-      },
-      data: { campaignId: campanha.id },
-    });
-
-    if (vinculados > 0) {
-      await prisma.commission.updateMany({
-        where: { campaignId: null, order: { campaignId: campanha.id } },
-        data: { campaignId: campanha.id },
-      });
-      console.log(`✓ ${vinculados} pedidos vinculados à campanha de demonstração.`);
-    }
-  }
-
-  // --- Perfis para a sua conta real ---------------------------------------
-  const userId = process.env.SEED_USER_ID;
-  if (userId) {
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user) {
-      console.warn(
-        `\n⚠ SEED_USER_ID=${userId} não existe no banco ainda. Faça login uma vez na ` +
-          `aplicação e rode o seed de novo — o ensureUser() cria o registro no primeiro acesso.`,
-      );
-    } else {
-      const seller = await prisma.profile.upsert({
-        where: { userId_type: { userId, type: "SELLER" } },
-        update: {},
-        create: {
-          userId,
-          type: "SELLER",
-          displayName: user.name ?? "Minha loja",
-          sellerProfile: { create: { companyName: user.name ?? "Minha loja" } },
-        },
-        include: { sellerProfile: true },
-      });
-
-      await prisma.profile.upsert({
-        where: { userId_type: { userId, type: "CREATOR" } },
-        update: {},
-        create: {
-          userId,
-          type: "CREATOR",
-          displayName: user.name ?? "Meu perfil de creator",
-          creatorProfile: {
+  // --- Produtos -----------------------------------------------------------
+  console.log("Criando produtos...");
+  const produtos = [];
+  for (const p of CATALOGO) {
+    produtos.push(
+      await prisma.product.create({
+        data: {
+          sellerProfileId: sellerId,
+          name: p.nome,
+          category: p.cat,
+          description: `${p.nome} — item de giro rápido, com boa margem para trabalhar com creators.`,
+          price: dec(p.preco),
+          stockQuantity: entre(40, 900),
+          status: "ACTIVE",
+          source: "MANUAL",
+          economics: {
             create: {
-              bio: "Perfil de teste com os dois papéis.",
-              niches: ["Saúde e suplementos", "Casa e cozinha"],
-              followersCount: 12_500,
-              averageViews: 4_200,
-              engagementRate: rate(0.044),
+              productCost: dec(p.custo),
+              shippingCost: dec(12),
+              // Tabela do TikTok BR: 10% + R$ 4 abaixo de R$ 50, 6% + R$ 6 acima.
+              platformFee: dec(p.preco >= 50 ? p.preco * 0.06 + 6 : p.preco * 0.1 + 4),
+              operationalCost: dec(3),
+              minimumMargin: rate(0.15),
+              targetMargin: rate(0.3),
             },
           },
         },
-      });
-
-      await prisma.user.update({
-        where: { id: userId },
-        data: { activeProfileId: seller.id },
-      });
-
-      console.log(`✓ Seus dois perfis (seller + creator) prontos para ${user.email}.`);
-    }
-  } else {
-    console.log(
-      "\nDica: rode com SEED_USER_ID=user_xxxxx para receber os dois papéis na sua conta.",
+      }),
     );
   }
 
-  const counts = {
-    sellers: SELLERS.length,
-    produtos: productIds.size,
-    creators: CREATORS.length,
-    afiliacoes: AFFILIATIONS.length,
-    conteudos: CONTENTS.length,
-    pedidos: ordersCreated,
-    comissoes: commissionsCreated,
-  };
+  // --- Afiliações ---------------------------------------------------------
+  const afiliados = produtos.slice(0, 5);
+  const afiliacoes = [];
+  for (const [i, produto] of afiliados.entries()) {
+    afiliacoes.push(
+      await prisma.affiliation.create({
+        data: {
+          creatorProfileId: creatorId,
+          productId: produto.id,
+          commissionRate: rate(escolha([0.12, 0.15, 0.18, 0.2])),
+          status: i === 4 ? "PENDING" : "ACTIVE",
+          startedAt: i === 4 ? null : dias(35 - i * 4),
+        },
+      }),
+    );
+  }
+  const ativas = afiliacoes.filter((a) => a.status === "ACTIVE");
 
-  console.log("\n✓ Seed concluído:", counts);
+  // --- Campanha -----------------------------------------------------------
+  const campanha = await prisma.campaign.create({
+    data: {
+      sellerProfileId: sellerId,
+      name: "Casa & Bem-estar — Agosto",
+      description: "Empurrão nos produtos de maior margem antes do fim do mês.",
+      status: "ACTIVE",
+      startAt: dias(20),
+      endAt: dias(-10),
+      commissionRate: rate(0.2),
+      targetSales: 300,
+      budget: dec(4000),
+      products: { create: afiliados.slice(0, 3).map((p) => ({ productId: p.id, commissionRate: rate(0.2) })) },
+      creators: { create: [{ creatorProfileId: creatorId, status: "ACCEPTED", acceptedAt: dias(19) }] },
+    },
+  });
+
+  // --- Pedidos, comissões -------------------------------------------------
+  console.log("Criando pedidos...");
+  let totalPedidos = 0;
+  for (let d = 55; d >= 0; d--) {
+    const quantos = entre(0, 3);
+    for (let n = 0; n < quantos; n++) {
+      const afiliacao = escolha(ativas);
+      const produto = produtos.find((p) => p.id === afiliacao.productId)!;
+      const qtd = entre(1, 2);
+      const preco = Number(produto.price);
+      const total = preco * qtd;
+      const taxa = preco >= 50 ? total * 0.06 + 6 : total * 0.1 + 4;
+      const comissaoRate = Number(afiliacao.commissionRate);
+      const comissao = total * comissaoRate;
+      const cancelado = rnd() < 0.06;
+
+      const pedido = await prisma.order.create({
+        data: {
+          sellerProfileId: sellerId,
+          campaignId: rnd() < 0.4 ? campanha.id : null,
+          orderStatus: cancelado ? "CANCELLED" : "DELIVERED",
+          paymentStatus: cancelado ? "REFUNDED" : "PAID",
+          fulfillmentStatus: cancelado ? "RETURNED" : "DELIVERED",
+          totalAmount: dec(total),
+          platformFee: dec(taxa),
+          creatorCommission: dec(comissao),
+          refundAmount: dec(cancelado ? total : 0),
+          netRevenue: dec(cancelado ? 0 : total - taxa - comissao),
+          estimatedProfit: dec(cancelado ? 0 : total - taxa - comissao - 28 * qtd),
+          attributedAffiliationId: afiliacao.id,
+          attributedAt: dias(d),
+          attributionWindowDays: 7,
+          source: "CSV_IMPORT",
+          externalOrderId: `demo-${d}-${n}`,
+          placedAt: dias(d),
+          items: {
+            create: [{ productId: produto.id, quantity: qtd, unitPrice: dec(preco), totalAmount: dec(total) }],
+          },
+        },
+      });
+      totalPedidos++;
+
+      if (!cancelado) {
+        await prisma.commission.create({
+          data: {
+            creatorProfileId: creatorId,
+            orderId: pedido.id,
+            affiliationId: afiliacao.id,
+            campaignId: pedido.campaignId,
+            rate: rate(comissaoRate),
+            estimatedAmount: dec(comissao),
+            finalAmount: d > 15 ? dec(comissao) : null,
+            status: d > 15 ? "PAID" : d > 5 ? "APPROVED" : "ESTIMATED",
+          },
+        });
+      }
+    }
+  }
+
+  // --- Conteúdo -----------------------------------------------------------
+  for (const [i, afiliacao] of ativas.entries()) {
+    const produto = produtos.find((p) => p.id === afiliacao.productId)!;
+    const views = entre(8000, 92000);
+    const conteudo = await prisma.content.create({
+      data: {
+        creatorProfileId: creatorId,
+        productId: produto.id,
+        campaignId: i < 2 ? campanha.id : null,
+        contentType: "VIDEO",
+        title: `Testei o ${produto.name.toLowerCase()} por 7 dias`,
+        url: `https://www.tiktok.com/@davisnaider/video/74${entre(10000000, 99999999)}`,
+        publishedAt: dias(30 - i * 5),
+        source: "PLATFORM",
+        views,
+        likes: Math.round(views * 0.07),
+        comments: Math.round(views * 0.004),
+        shares: Math.round(views * 0.011),
+        clicks: Math.round(views * 0.031),
+        orders: entre(4, 40),
+        gmv: dec(entre(400, 4200)),
+        commission: dec(entre(60, 700)),
+        lastPerformanceAt: dias(1),
+      },
+    });
+    await prisma.contentPerformance.create({
+      data: {
+        contentId: conteudo.id,
+        views,
+        clicks: Math.round(views * 0.031),
+        orders: entre(4, 40),
+        gmv: dec(entre(400, 4200)),
+        commission: dec(entre(60, 700)),
+        source: "PLATFORM",
+        recordedAt: dias(1),
+      },
+    });
+  }
+
+  // --- Outros assinantes, para o painel de admin não ficar vazio ----------
+  console.log("Criando assinantes de exemplo...");
+  const outros = [
+    { email: "juliana.ramos@exemplo.com", nome: "Juliana Ramos", plano: "Mensal", cents: 14700, status: "ACTIVE" as const, dia: 3 },
+    { email: "marcos.lima@exemplo.com", nome: "Marcos Lima", plano: "Trimestral", cents: 29700, status: "ACTIVE" as const, dia: 12 },
+    { email: "carla.souza@exemplo.com", nome: "Carla Souza", plano: "Anual", cents: 59700, status: "ACTIVE" as const, dia: 26 },
+    { email: "pedro.alves@exemplo.com", nome: "Pedro Alves", plano: "Mensal", cents: 14700, status: "CANCELED" as const, dia: 48 },
+    { email: "renata.dias@exemplo.com", nome: "Renata Dias", plano: "Mensal", cents: 14700, status: "EXPIRED" as const, dia: 70 },
+  ];
+
+  for (const [i, o] of outros.entries()) {
+    const u = await prisma.user.create({
+      data: { id: `user_demo_${i}`, email: o.email, name: o.nome, role: "MEMBER" },
+    });
+    const assinatura = await prisma.subscription.create({
+      data: {
+        email: o.email,
+        userId: u.id,
+        provider: "HUBLA",
+        externalId: `sub_demo_${i}`,
+        status: o.status,
+        planName: o.plano,
+        startedAt: dias(o.dia),
+        canceledAt: o.status === "CANCELED" ? dias(5) : null,
+      },
+    });
+    if (o.status !== "EXPIRED") {
+      await prisma.payment.create({
+        data: {
+          subscriptionId: assinatura.id,
+          email: o.email,
+          provider: "HUBLA",
+          externalId: `inv_demo_${i}`,
+          amountCents: o.cents,
+          status: "paid",
+          paidAt: dias(o.dia),
+        },
+      });
+    }
+  }
+
+  // Um pagamento do próprio dono, para o total do mês não sair zerado.
+  const assinaturaDono = await prisma.subscription.findUnique({ where: { email: OWNER_EMAIL } });
+  await prisma.payment.create({
+    data: {
+      subscriptionId: assinaturaDono!.id,
+      email: OWNER_EMAIL,
+      provider: "HUBLA",
+      externalId: "inv_demo_owner",
+      amountCents: 59700,
+      status: "paid",
+      paidAt: dias(40),
+    },
+  });
+
+  const [pagamentos, receita] = await Promise.all([
+    prisma.payment.count(),
+    prisma.payment.aggregate({ _sum: { amountCents: true } }),
+  ]);
+
+  console.log(`
+Pronto.
+  dono            ${OWNER_EMAIL}  (ADMIN, assinatura ativa, perfis SELLER + CREATOR)
+  produtos        ${produtos.length}
+  afiliações      ${afiliacoes.length} (${ativas.length} ativas, 1 pendente)
+  campanha        1
+  pedidos         ${totalPedidos}
+  assinantes      ${outros.length + 1}
+  faturamento     R$ ${((receita._sum.amountCents ?? 0) / 100).toFixed(2)} em ${pagamentos} pagamentos
+`);
+
   await prisma.$disconnect();
 }
 

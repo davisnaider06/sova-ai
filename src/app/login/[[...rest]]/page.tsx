@@ -8,7 +8,10 @@ export default function LoginPage() {
       <Link href="/" className="flex items-center gap-2">
         <Logo size={32} />
       </Link>
-      <SignIn />
+      {/* Mesmo destino do cadastro: o portão de assinatura decide para onde a
+          pessoa vai de fato. Explícito aqui porque as variáveis
+          `NEXT_PUBLIC_CLERK_AFTER_*` foram descontinuadas e são ignoradas. */}
+      <SignIn fallbackRedirectUrl="/dashboard" signUpUrl="/signup" />
     </div>
   );
 }
