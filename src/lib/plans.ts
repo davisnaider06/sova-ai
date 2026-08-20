@@ -1,4 +1,4 @@
-import { HUBLA_CHECKOUT_URL } from "@/lib/checkout";
+import { HUBLA_CHECKOUT_URLS, type CheckoutPlanId } from "@/lib/checkout";
 
 // ---------------------------------------------------------------------------
 // Os planos, em centavos.
@@ -13,7 +13,9 @@ import { HUBLA_CHECKOUT_URL } from "@/lib/checkout";
 // ---------------------------------------------------------------------------
 
 export type Plan = {
-  id: string;
+  /// Mesmo id usado como chave em `HUBLA_CHECKOUT_URLS` — é o que amarra o
+  /// cartão ao link de pagamento certo.
+  id: CheckoutPlanId;
   name: string;
   priceCents: number;
   /// Quantos meses o pagamento cobre. É daqui que sai o equivalente mensal.
@@ -25,10 +27,6 @@ export type Plan = {
   checkoutUrl: string;
 };
 
-// ⚠️ Os três apontam para o mesmo link porque só existe um endereço de
-// checkout conhecido. Na Hubla há três planos separados (Mensal, Trimestral e
-// Anual), e cada um tem o seu próprio link — trocar aqui é a única coisa que
-// falta para o botão levar ao plano certo.
 export const PLANS: Plan[] = [
   {
     id: "mensal",
@@ -36,7 +34,7 @@ export const PLANS: Plan[] = [
     priceCents: 14700,
     months: 1,
     periodLabel: "/mês",
-    checkoutUrl: HUBLA_CHECKOUT_URL,
+    checkoutUrl: HUBLA_CHECKOUT_URLS.mensal,
   },
   {
     id: "trimestral",
@@ -44,7 +42,7 @@ export const PLANS: Plan[] = [
     priceCents: 29700,
     months: 3,
     periodLabel: "/trimestre",
-    checkoutUrl: HUBLA_CHECKOUT_URL,
+    checkoutUrl: HUBLA_CHECKOUT_URLS.trimestral,
   },
   {
     id: "anual",
@@ -53,7 +51,7 @@ export const PLANS: Plan[] = [
     months: 12,
     periodLabel: "/ano",
     highlighted: true,
-    checkoutUrl: HUBLA_CHECKOUT_URL,
+    checkoutUrl: HUBLA_CHECKOUT_URLS.anual,
   },
 ];
 
