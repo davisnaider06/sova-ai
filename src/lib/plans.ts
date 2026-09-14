@@ -7,9 +7,13 @@ import { HUBLA_CHECKOUT_URLS, type CheckoutPlanId } from "@/lib/checkout";
 // misturá-la com dado fictício de demonstração é como um número errado acaba
 // na tela de um cliente.
 //
-// Os três não são produtos diferentes — é o mesmo acesso, com períodos de
+// Os dois não são produtos diferentes — é o mesmo acesso, com períodos de
 // cobrança diferentes. Por isso a lista de benefícios é uma só, mostrada
-// abaixo dos cartões em vez de repetida três vezes.
+// abaixo dos cartões em vez de repetida duas vezes.
+//
+// Estrutura decidida em 10/09/2026: Mensal R$147 e Anual R$1.164
+// (equivalente a R$97/mês, 34% de desconto), sem plano Trimestral — ver
+// [[Sova - Benchmarking e Distribuicao]] no segundo cérebro.
 // ---------------------------------------------------------------------------
 
 export type Plan = {
@@ -37,17 +41,9 @@ export const PLANS: Plan[] = [
     checkoutUrl: HUBLA_CHECKOUT_URLS.mensal,
   },
   {
-    id: "trimestral",
-    name: "Trimestral",
-    priceCents: 29700,
-    months: 3,
-    periodLabel: "/trimestre",
-    checkoutUrl: HUBLA_CHECKOUT_URLS.trimestral,
-  },
-  {
     id: "anual",
     name: "Anual",
-    priceCents: 59700,
+    priceCents: 116400,
     months: 12,
     periodLabel: "/ano",
     highlighted: true,

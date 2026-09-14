@@ -307,8 +307,8 @@ async function main() {
   console.log("Criando assinantes de exemplo...");
   const outros = [
     { email: "juliana.ramos@exemplo.com", nome: "Juliana Ramos", plano: "Mensal", cents: 14700, status: "ACTIVE" as const, dia: 3 },
-    { email: "marcos.lima@exemplo.com", nome: "Marcos Lima", plano: "Trimestral", cents: 29700, status: "ACTIVE" as const, dia: 12 },
-    { email: "carla.souza@exemplo.com", nome: "Carla Souza", plano: "Anual", cents: 59700, status: "ACTIVE" as const, dia: 26 },
+    { email: "marcos.lima@exemplo.com", nome: "Marcos Lima", plano: "Anual", cents: 116400, status: "ACTIVE" as const, dia: 12 },
+    { email: "carla.souza@exemplo.com", nome: "Carla Souza", plano: "Mensal", cents: 14700, status: "ACTIVE" as const, dia: 26 },
     { email: "pedro.alves@exemplo.com", nome: "Pedro Alves", plano: "Mensal", cents: 14700, status: "CANCELED" as const, dia: 48 },
     { email: "renata.dias@exemplo.com", nome: "Renata Dias", plano: "Mensal", cents: 14700, status: "EXPIRED" as const, dia: 70 },
   ];

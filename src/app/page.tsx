@@ -224,7 +224,7 @@ export default function LandingPage() {
                   </p>
 
                   {/* O equivalente mensal é o que torna a comparação honesta:
-                      sem ele, R$ 597 parece caro ao lado de R$ 147. */}
+                      sem ele, R$ 1.164 parece caro ao lado de R$ 147. */}
                   <p className="mt-1.5 text-sm text-ink-secondary">
                     {plan.months === 1
                       ? "Cobrado todo mês"

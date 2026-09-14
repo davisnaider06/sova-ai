@@ -8,9 +8,12 @@ import { requireProfile } from "@/lib/session";
 import { toPercent } from "@/lib/money";
 import { isTikTokConfigured } from "@/lib/tiktok/config";
 import { countVideos } from "@/lib/tiktok/connection";
+import { isTikTokShopConfigured } from "@/lib/tiktok-shop/config";
+import { countSyncedOrders } from "@/lib/tiktok-shop/connection";
 import { CreatorProfileForm } from "./creator-profile-form";
 import { SellerProfileForm } from "./seller-profile-form";
 import { TikTokCard, type TikTokCardProps } from "./tiktok-card";
+import { TikTokShopCard, type TikTokShopCardProps } from "./tiktok-shop-card";
 
 /// Lê um campo do retrato de perfil guardado em `ExternalAccount.metadata`.
 ///
@@ -52,6 +55,45 @@ function readFeedback(params: Record<string, string | string[] | undefined>) {
   }
 }
 
+/// Mesma lógica de `readFeedback`, para a conexão com a Affiliate Creator API
+/// — chave de query separada (`tiktokshop`) porque os dois fluxos podem estar
+/// em estados diferentes ao mesmo tempo.
+function readTikTokShopFeedback(params: Record<string, string | string[] | undefined>) {
+  const value = (key: string) => {
+    const v = params[key];
+    return Array.isArray(v) ? v[0] : v;
+  };
+
+  switch (value("tiktokshop")) {
+    case "conectado":
+      return {
+        kind: "ok" as const,
+        message: "Conta do TikTok Shop conectada. Sincronize para trazer seus pedidos.",
+      };
+    case "parcial":
+      return { kind: "aviso" as const, message: value("motivo") ?? "Conectado com permissões incompletas." };
+    case "sincronizado": {
+      const pedidos = Number(value("pedidos") ?? 0);
+      const avisos = Number(value("avisos") ?? 0);
+      return {
+        kind: "ok" as const,
+        message:
+          pedidos > 0
+            ? `Sincronizado: ${pedidos} ${pedidos === 1 ? "pedido novo" : "pedidos novos"}.${
+                avisos > 0 ? ` ${avisos} ${avisos === 1 ? "aviso" : "avisos"} — veja o log do servidor.` : ""
+              }`
+            : "Sincronizado. Nenhum pedido novo bateu com seu catálogo afiliado.",
+      };
+    }
+    case "desconectado":
+      return { kind: "ok" as const, message: "Conta do TikTok Shop desconectada." };
+    case "erro":
+      return { kind: "erro" as const, message: value("motivo") ?? "Algo deu errado na integração." };
+    default:
+      return null;
+  }
+}
+
 export default async function ConfiguracoesPage({
   searchParams,
 }: {
@@ -60,7 +102,7 @@ export default async function ConfiguracoesPage({
   const { user, profile } = await requireProfile();
   const params = await searchParams;
 
-  const [creator, seller, tiktokAccount] = await Promise.all([
+  const [creator, seller, tiktokAccount, tiktokShopAccount] = await Promise.all([
     profile.type === "CREATOR"
       ? prisma.creatorProfile.findUnique({ where: { profileId: profile.id } })
       : null,
@@ -70,6 +112,11 @@ export default async function ConfiguracoesPage({
     prisma.externalAccount.findFirst({
       where: { profileId: profile.id, provider: "TIKTOK" },
     }),
+    profile.type === "CREATOR"
+      ? prisma.externalAccount.findFirst({
+          where: { profileId: profile.id, provider: "TIKTOK_SHOP" },
+        })
+      : null,
   ]);
 
   // Nenhum campo de token é lido aqui — nem cifrado. A UI não precisa deles.
@@ -83,6 +130,18 @@ export default async function ConfiguracoesPage({
         username: readMetadata(tiktokAccount.metadata, "username"),
         displayName: readMetadata(tiktokAccount.metadata, "displayName"),
         videoCount: await countVideos(tiktokAccount.id),
+      }
+    : null;
+
+  const tiktokShopConnection: TikTokShopCardProps["connection"] = tiktokShopAccount
+    ? {
+        status: tiktokShopAccount.status,
+        syncStatus: tiktokShopAccount.syncStatus,
+        lastSyncedAt: tiktokShopAccount.lastSyncedAt,
+        lastSyncError: tiktokShopAccount.lastSyncError,
+        scopes: tiktokShopAccount.scopes,
+        username: readMetadata(tiktokShopAccount.metadata, "username"),
+        ordersSynced: await countSyncedOrders(profile.id),
       }
     : null;
 
@@ -129,30 +188,40 @@ export default async function ConfiguracoesPage({
 
           <TabsContent value="integracoes">
             <div className="flex flex-col gap-4">
-              {/* Conta TikTok: Login Kit, perfil e vídeos do próprio creator. */}
+              {profile.type === "CREATOR" && (
+                // Affiliate Creator API: histórico real de venda — o fluxo
+                // padrão de onboarding, em destaque. Ver [[Sova -
+                // Especificacao Integracao API TikTok]] no segundo cérebro.
+                <TikTokShopCard
+                  configured={isTikTokShopConfigured()}
+                  connection={tiktokShopConnection}
+                  feedback={readTikTokShopFeedback(params)}
+                />
+              )}
+
+              {/* Login Kit: perfil e vídeos do próprio creator — audiência,
+                  não venda. Continua existindo como está. */}
               <TikTokCard
                 configured={isTikTokConfigured()}
                 connection={connection}
                 feedback={readFeedback(params)}
               />
 
-              {/* TikTok Shop é outra autorização, outro portal e outros dados
-                  (produtos, pedidos, GMV) — ver §12 do documento de pesquisa.
-                  Segue dependendo do Partner Center, e dizer o contrário aqui
-                  seria a mentira que só aparece na frente do cliente. */}
-              <Card className="flex max-w-2xl flex-col gap-3 p-5">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium text-ink-primary">TikTok Shop</p>
-                  <Badge variant="subtle">Não conectada</Badge>
-                </div>
-                <p className="text-sm text-ink-muted">
-                  Pedidos, produtos e GMV vêm da API do TikTok Shop, que é uma
-                  autorização separada da conta acima e depende de aprovação no
-                  Partner Center. Até lá, a importação de pedidos por planilha
-                  cobre o mesmo fluxo: os pedidos entram, a atribuição roda e as
-                  comissões são geradas do mesmo jeito.
-                </p>
-              </Card>
+              {profile.type === "SELLER" && (
+                <Card className="flex max-w-2xl flex-col gap-3 p-5">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium text-ink-primary">TikTok Shop</p>
+                    <Badge variant="subtle">Conexão do creator</Badge>
+                  </div>
+                  <p className="text-sm text-ink-muted">
+                    Quem conecta o TikTok Shop é o creator, a partir do perfil dele — é a
+                    autorização de venda afiliada, diferente desta conta. Enquanto isso, ou
+                    para quem prefere planilha, a importação de pedidos na tela de Pedidos
+                    cobre o mesmo fluxo: os pedidos entram, a atribuição roda e as comissões
+                    são geradas do mesmo jeito.
+                  </p>
+                </Card>
+              )}
             </div>
           </TabsContent>
 

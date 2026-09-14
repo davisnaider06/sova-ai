@@ -2,10 +2,11 @@ import "server-only";
 
 import { prisma } from "@/lib/db";
 import { parseCsv, pick } from "@/lib/integration/csv";
-import { parseCents, toDecimalString } from "@/lib/money";
+import { parseCents } from "@/lib/money";
 import { decideAttribution, DEFAULT_ATTRIBUTION_WINDOW_DAYS } from "@/lib/attribution";
+import { writeOrder } from "@/lib/integration/orders-write";
 import type { ImportReport } from "@/lib/integration/orders-contract";
-import { OrderStatus, PaymentStatus } from "@/generated/prisma";
+import { OrderStatus } from "@/generated/prisma";
 
 export type { ImportReport };
 
@@ -188,7 +189,11 @@ async function importOneOrder(
   windowDays: number,
 ) {
   // Idempotência primeiro: reimportar o mesmo arquivo não pode duplicar venda
-  // nem, principalmente, duplicar comissão.
+  // nem, principalmente, duplicar comissão. Checado aqui — e não só dentro de
+  // `writeOrder` — porque um pedido já importado deve ser pulado mesmo que o
+  // produto tenha sido renomeado ou removido do catálogo depois; sem este
+  // atalho, reimportar o mesmo arquivo passaria a estourar "produto não
+  // encontrado" em vez de reportar "já existia".
   const existing = await prisma.order.findUnique({
     where: {
       source_externalOrderId: { source: "CSV_IMPORT", externalOrderId },
@@ -209,7 +214,6 @@ async function importOneOrder(
     return { productId: product.id, quantity: line.quantity, unitPriceCents: unit, totalCents: total };
   });
 
-  const gmvCents = items.reduce((acc, i) => acc + i.totalCents, 0);
   const placedAt = lines[0].placedAt;
   const status = lines[0].status;
   const declaredCreatorHandle = lines.find((l) => l.creatorHandle)?.creatorHandle ?? null;
@@ -259,7 +263,6 @@ async function importOneOrder(
 
   const attributed = affiliations.find((a) => a.id === decision.affiliationId) ?? null;
   const rate = attributed ? Number(attributed.commissionRate.toString()) : 0;
-  const commissionCents = attributed ? Math.round(gmvCents * rate) : 0;
 
   // Campanha vigente na data da venda, se houver.
   //
@@ -281,79 +284,33 @@ async function importOneOrder(
     select: { id: true },
   });
 
-  // Uma transação: pedido, itens e comissão entram juntos ou não entram.
-  // Pedido gravado sem a comissão correspondente é dinheiro que some do
-  // extrato do creator sem ninguém saber por quê.
-  await prisma.$transaction(async (tx) => {
-    const order = await tx.order.create({
-      data: {
-        sellerProfileId,
-        campaignId: campaign?.id ?? null,
-        orderStatus: status,
-        paymentStatus: paymentFor(status),
-        totalAmount: toDecimalString(gmvCents),
-        creatorCommission: toDecimalString(commissionCents),
-        netRevenue: toDecimalString(gmvCents - commissionCents),
-        source: "CSV_IMPORT",
-        externalOrderId,
-        syncedAt: new Date(),
-        placedAt,
-        // A decisão de atribuição fica GRAVADA, com a janela usada. É o que
-        // permite auditar depois por que aquela venda foi de quem foi.
-        attributedAffiliationId: decision.affiliationId,
-        attributedAt: decision.affiliationId ? new Date() : null,
-        attributionWindowDays: decision.windowDays,
-        items: {
-          create: items.map((i) => ({
-            productId: i.productId,
-            quantity: i.quantity,
-            unitPrice: toDecimalString(i.unitPriceCents),
-            totalAmount: toDecimalString(i.totalCents),
-          })),
-        },
-      },
-      select: { id: true },
-    });
-
-    if (attributed && commissionCents > 0) {
-      await tx.commission.create({
-        data: {
-          creatorProfileId: attributed.creatorProfileId,
-          orderId: order.id,
-          affiliationId: attributed.id,
-          campaignId: campaign?.id ?? null,
-          // Taxa congelada no momento da criação. Se o seller mudar a comissão
-          // amanhã, esta linha não muda junto.
-          rate: String(rate),
-          estimatedAmount: toDecimalString(commissionCents),
-          status: status === "DELIVERED" ? "APPROVED" : "PENDING",
-        },
-      });
-    }
-
-    await tx.event.create({
-      data: {
-        eventType: "ORDER_IMPORTED",
-        entityType: "Order",
-        entityId: order.id,
-        metadata: {
-          externalOrderId,
-          attributionReason: decision.reason,
-          windowDays: decision.windowDays,
-          gmvCents,
-          commissionCents,
-        },
-      },
-    });
+  // A escrita (pedido, itens, comissão, evento) é compartilhada com a
+  // Affiliate Creator API — ver `orders-write.ts`. Daqui para baixo, CSV e API
+  // gravam pelo mesmo caminho.
+  const result = await writeOrder({
+    sellerProfileId,
+    campaignId: campaign?.id ?? null,
+    externalOrderId,
+    source: "CSV_IMPORT",
+    placedAt,
+    status,
+    items,
+    attribution: {
+      affiliationId: decision.affiliationId,
+      creatorProfileId: attributed?.creatorProfileId ?? null,
+      rate,
+      reason: decision.reason,
+      windowDays: decision.windowDays,
+    },
   });
 
-  return {
-    skipped: false as const,
-    items: items.length,
-    gmvCents,
-    attributed: decision.affiliationId !== null,
-    commissionCents,
-  };
+  // `existing` já garantiu que não chegamos aqui num pedido duplicado — o
+  // `skipped` do writer é só uma segunda trava, nunca deveria disparar.
+  if (result.skipped) {
+    return { skipped: true as const, items: 0, gmvCents: 0, attributed: false, commissionCents: 0 };
+  }
+
+  return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -393,19 +350,4 @@ function mapStatus(raw: string): OrderStatus {
   if (/devolv|return|reembols|refund/.test(s)) return OrderStatus.RETURNED;
   if (/confirm|pago|paid|process/.test(s)) return OrderStatus.CONFIRMED;
   return OrderStatus.PENDING;
-}
-
-function paymentFor(status: OrderStatus): PaymentStatus {
-  switch (status) {
-    case OrderStatus.DELIVERED:
-    case OrderStatus.SHIPPED:
-    case OrderStatus.CONFIRMED:
-      return PaymentStatus.PAID;
-    case OrderStatus.RETURNED:
-      return PaymentStatus.REFUNDED;
-    case OrderStatus.CANCELLED:
-      return PaymentStatus.FAILED;
-    default:
-      return PaymentStatus.PENDING;
-  }
 }

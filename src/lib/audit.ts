@@ -42,7 +42,10 @@ export type AuditAction =
   | "ORDERS_IMPORTED"
   | "TIKTOK_CONNECTED"
   | "TIKTOK_DISCONNECTED"
-  | "TIKTOK_SYNCED";
+  | "TIKTOK_SYNCED"
+  | "TIKTOK_SHOP_CONNECTED"
+  | "TIKTOK_SHOP_DISCONNECTED"
+  | "TIKTOK_SHOP_SYNCED";
 
 export async function recordAudit(entry: {
   userId?: string | null;

@@ -295,6 +295,12 @@ model ProfileMetric {
 
 enum Provider {
   TIKTOK
+  /// Affiliate Creator API do TikTok Shop — autorização, portal e dados
+  /// separados do Login Kit acima (que fica só com áudio/conteúdo). Provider
+  /// próprio, e não metadata dentro de TIKTOK, porque `findByProvider` faz
+  /// `findFirst` por (profileId, provider): duas linhas com o mesmo provider
+  /// tornariam a escolha entre Login Kit e Shop uma corrida, não uma consulta.
+  TIKTOK_SHOP
   INSTAGRAM
   YOUTUBE
   OTHER
