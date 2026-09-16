@@ -17,13 +17,17 @@ import { Logo } from "@/components/brand/logo";
 // A mensagem de rate limit é a única que identificamos e explicamos; qualquer
 // outro erro cai no texto genérico, de propósito — não é este componente que
 // decide o que é seguro mostrar, é o Next filtrando antes de chegar aqui.
+//
+// `retry` e não `reset`: a partir da 16.3.0 é a prop estável recomendada —
+// tenta buscar e renderizar de novo o conteúdo, em vez de só limpar o estado
+// do erro (ver node_modules/next/dist/docs/.../file-conventions/error.md).
 // ---------------------------------------------------------------------------
 export default function ErrorBoundary({
   error,
-  reset,
+  retry,
 }: {
   error: Error & { digest?: string };
-  reset: () => void;
+  retry: () => void;
 }) {
   useEffect(() => {
     console.error(error);
@@ -46,7 +50,7 @@ export default function ErrorBoundary({
             : "Não conseguimos completar essa ação agora. Tente de novo em instantes."}
         </p>
 
-        <Button onClick={reset} size="lg" className="mt-7 w-full">
+        <Button onClick={retry} size="lg" className="mt-7 w-full">
           Tentar de novo
         </Button>
 
