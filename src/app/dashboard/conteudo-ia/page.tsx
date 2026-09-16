@@ -5,6 +5,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { prisma } from "@/lib/db";
 import { requireCreatorScope } from "@/lib/session";
 import { isAiConfigured } from "@/lib/ai/client";
+import { isOpenAiConfigured } from "@/lib/ai/openai-client";
+import { isRunwayConfigured } from "@/lib/ai/runway-client";
 import { ScriptGenerator } from "./script-generator";
 
 // §39 — Assistente de conteúdo do creator.
@@ -15,16 +17,25 @@ import { ScriptGenerator } from "./script-generator";
 export default async function ConteudoIaPage() {
   const { scope } = await requireCreatorScope();
 
-  const affiliations = await prisma.affiliation.findMany({
-    where: { creatorProfileId: scope.creatorProfileId, status: "ACTIVE" },
-    orderBy: { updatedAt: "desc" },
-    select: {
-      product: { select: { id: true, name: true, category: true } },
-    },
-  });
+  const [affiliations, creatorProfile] = await Promise.all([
+    prisma.affiliation.findMany({
+      where: { creatorProfileId: scope.creatorProfileId, status: "ACTIVE" },
+      orderBy: { updatedAt: "desc" },
+      select: {
+        product: { select: { id: true, name: true, category: true } },
+      },
+    }),
+    prisma.creatorProfile.findUnique({
+      where: { id: scope.creatorProfileId },
+      select: { videoCharacterImage: true },
+    }),
+  ]);
 
   const products = affiliations.map((a) => a.product);
   const configured = isAiConfigured();
+  const imageConfigured = isOpenAiConfigured();
+  const videoConfigured = isRunwayConfigured();
+  const hasCharacterPhoto = Boolean(creatorProfile?.videoCharacterImage);
 
   return (
     <>
@@ -65,7 +76,12 @@ export default async function ConteudoIaPage() {
             action={{ href: "/dashboard/descobrir", label: "Descobrir produtos" }}
           />
         ) : (
-          <ScriptGenerator products={products} />
+          <ScriptGenerator
+            products={products}
+            imageConfigured={imageConfigured}
+            videoConfigured={videoConfigured}
+            hasCharacterPhoto={hasCharacterPhoto}
+          />
         )}
       </div>
     </>

@@ -29,6 +29,10 @@ const CSP = [
   "font-src 'self' data:",
   "connect-src 'self' https://*.clerk.accounts.dev https://*.clerk.com https://*.protect.clerk.com:*",
   "frame-src https://*.clerk.accounts.dev https://*.clerk.com https://challenges.cloudflare.com https://*.protect.clerk.com",
+  // O vídeo gerado (Runway) é servido de um domínio de CDN deles que não é
+  // fixo/documentado publicamente — `https:` genérico aqui em vez de listar
+  // um host específico que pode mudar e quebrar a reprodução sem aviso.
+  "media-src 'self' https:",
   "worker-src 'self' blob:",
   "object-src 'none'",
   "base-uri 'self'",

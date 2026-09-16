@@ -239,6 +239,12 @@ model CreatorProfile {
   creatorScore   Decimal? @db.Decimal(5, 2)
   audienceData   Json?
 
+  /// Foto do creator para aparecer nos vídeos gerados por IA (Runway
+  /// productUgc pede uma imagem de "personagem"). Guardada como data URI
+  /// base64 direto no Postgres — é uma imagem só por creator, atualizada de
+  /// vez em quando, não justifica um serviço de storage à parte ainda.
+  videoCharacterImage String? @db.Text
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -246,6 +252,7 @@ model CreatorProfile {
   campaignCreators CampaignCreator[]
   contents         Content[]
   commissions      Commission[]
+  videoGenerations VideoGeneration[]
 }
 
 model SellerProfile {
@@ -439,6 +446,7 @@ model Product {
   campaignProducts CampaignProduct[]
   orderItems       OrderItem[]
   contents         Content[]
+  videoGenerations VideoGeneration[]
 
   /// Idempotência da ingestão. Produto cadastrado à mão tem externalProductId
   /// nulo, e no Postgres nulos não colidem entre si — então continua livre.
@@ -652,6 +660,40 @@ model ContentPerformance {
   recordedAt DateTime     @default(now())
 
   @@index([contentId, recordedAt])
+}
+
+enum VideoGenerationStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+/// Um vídeo gerado por IA (roteiro do Claude como direção criativa + Runway
+/// productUgc para o vídeo em si) para um produto que o creator promove.
+///
+/// `outputUrl` é a URL que a Runway devolve — expira em 24-48h, de propósito
+/// (v1 não tem storage permanente: o creator baixa e guarda por conta
+/// própria). A linha continua existindo depois de expirar, como histórico do
+/// que já foi gerado, só sem link de download válido.
+model VideoGeneration {
+  id               String         @id @default(cuid())
+  creatorProfileId String
+  creatorProfile   CreatorProfile @relation(fields: [creatorProfileId], references: [id], onDelete: Cascade)
+  productId        String
+  product          Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  status         VideoGenerationStatus @default(PENDING)
+  externalTaskId String? // id da task na Runway
+  script         Json? // snapshot do roteiro (Claude) usado como direção criativa
+  outputUrl      String? // URL temporária devolvida pela Runway (24-48h)
+  errorMessage   String?               @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([creatorProfileId, createdAt])
+  @@index([status])
 }
 
 // ===========================================================================

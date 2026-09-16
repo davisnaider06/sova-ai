@@ -308,6 +308,31 @@ export function creatorScope(creatorProfileId: string) {
         prisma.commission.count({ where: { ...where, creatorProfileId } }),
     },
 
+    /// Vídeos gerados por IA (roteiro do Claude + Runway productUgc).
+    videoGenerations: {
+      findById: (id: string) =>
+        prisma.videoGeneration.findFirst({ where: { id, creatorProfileId } }),
+
+      findMany: (
+        args: ListArgs<
+          Prisma.VideoGenerationWhereInput,
+          Prisma.VideoGenerationOrderByWithRelationInput
+        > = {},
+      ) =>
+        prisma.videoGeneration.findMany({
+          ...args,
+          where: { ...args.where, creatorProfileId },
+        }),
+
+      create: (data: Omit<Prisma.VideoGenerationUncheckedCreateInput, "creatorProfileId">) =>
+        prisma.videoGeneration.create({ data: { ...data, creatorProfileId } }),
+
+      /// `updateMany` com o filtro de dono: um id de outra pessoa simplesmente
+      /// não encontra linha, em vez de atualizar onde não devia.
+      update: (id: string, data: Prisma.VideoGenerationUncheckedUpdateInput) =>
+        prisma.videoGeneration.updateMany({ where: { id, creatorProfileId }, data }),
+    },
+
     /// Pedidos atribuídos a este creator. Passa pela afiliação de propósito:
     /// a atribuição é o que liga a venda ao creator, e ela pode ser nula.
     orders: {

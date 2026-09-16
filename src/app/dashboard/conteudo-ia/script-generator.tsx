@@ -17,6 +17,7 @@ import { Field, NativeSelect, Textarea } from "@/components/ui/field";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { generateScript } from "./actions";
 import { SCRIPT_IDLE } from "./contract";
+import { VideoProductionPanel } from "./video-production";
 
 export type AffiliatedProduct = {
   id: string;
@@ -24,8 +25,19 @@ export type AffiliatedProduct = {
   category: string;
 };
 
-export function ScriptGenerator({ products }: { products: AffiliatedProduct[] }) {
+export function ScriptGenerator({
+  products,
+  imageConfigured,
+  videoConfigured,
+  hasCharacterPhoto,
+}: {
+  products: AffiliatedProduct[];
+  imageConfigured: boolean;
+  videoConfigured: boolean;
+  hasCharacterPhoto: boolean;
+}) {
   const [state, formAction] = useActionState(generateScript, SCRIPT_IDLE);
+  const [productId, setProductId] = useState(products[0]?.id ?? "");
 
   return (
     <div className="flex flex-col gap-6">
@@ -33,7 +45,12 @@ export function ScriptGenerator({ products }: { products: AffiliatedProduct[] })
         <form action={formAction} className="flex flex-col gap-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Produto" htmlFor="productId" required>
-              <NativeSelect id="productId" name="productId" defaultValue={products[0]?.id}>
+              <NativeSelect
+                id="productId"
+                name="productId"
+                value={productId}
+                onChange={(e) => setProductId(e.target.value)}
+              >
                 {products.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}
@@ -130,6 +147,16 @@ export function ScriptGenerator({ products }: { products: AffiliatedProduct[] })
             </Card>
           </div>
         </div>
+      )}
+
+      {state.status === "done" && (
+        <VideoProductionPanel
+          productId={productId}
+          script={state.script}
+          imageConfigured={imageConfigured}
+          videoConfigured={videoConfigured}
+          hasCharacterPhoto={hasCharacterPhoto}
+        />
       )}
     </div>
   );
