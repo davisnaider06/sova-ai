@@ -19,11 +19,18 @@ import { Redis } from "@upstash/redis";
 let redis: Redis | null | undefined;
 let warned = false;
 
+/// A integração de Upstash pelo marketplace da Vercel aplica o prefixo
+/// customizado (`UPSTASH_REDIS_REST`) em cima do nome que o Upstash já usa por
+/// padrão (`KV_REST_API_URL`/`KV_REST_API_TOKEN`) — o resultado não é
+/// renomeável na UI (variável de integração, só "Manage Connection"). Aceita
+/// os dois formatos: o gerado pela integração e o "limpo" de um banco criado
+/// direto em upstash.com e colado à mão (é o que `.env.example` documenta).
 function getRedis(): Redis | null {
   if (redis !== undefined) return redis;
 
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  const url = process.env.UPSTASH_REDIS_REST_KV_REST_API_URL ?? process.env.UPSTASH_REDIS_REST_URL;
+  const token =
+    process.env.UPSTASH_REDIS_REST_KV_REST_API_TOKEN ?? process.env.UPSTASH_REDIS_REST_TOKEN;
 
   if (!url || !token) {
     redis = null;
