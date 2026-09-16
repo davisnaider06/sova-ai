@@ -1,6 +1,7 @@
 import { verifyWebhook } from "@clerk/nextjs/webhooks";
 import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 // ---------------------------------------------------------------------------
 // Sync de User do Clerk para o banco.
@@ -20,6 +21,11 @@ import { prisma } from "@/lib/db";
 // ---------------------------------------------------------------------------
 
 export async function POST(req: NextRequest) {
+  const rateLimit = await checkRateLimit("webhook-clerk", getClientIp(req), 60, "1 m");
+  if (!rateLimit.allowed) {
+    return new Response("Muitas requisições", { status: 429 });
+  }
+
   let evt;
   try {
     evt = await verifyWebhook(req);

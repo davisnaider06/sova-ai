@@ -5,6 +5,7 @@ import { requireCreatorScope } from "@/lib/session";
 import { Validator } from "@/lib/form";
 import { toCents } from "@/lib/money";
 import { generateVideoScript } from "@/lib/ai/video-script";
+import { checkRateLimit } from "@/lib/rate-limit";
 import type { ScriptState } from "./contract";
 
 /// Gera o roteiro para um produto que o creator promove.
@@ -18,6 +19,18 @@ export async function generateScript(
   formData: FormData,
 ): Promise<ScriptState> {
   const { scope, common } = await requireCreatorScope();
+
+  // Teto próprio, mais apertado que o geral de sessão: cada chamada aqui é
+  // dinheiro de verdade na conta da Anthropic, então o limite é por hora, não
+  // por minuto — o objetivo é conter abuso de custo, não throttle de UI.
+  const rateLimit = await checkRateLimit("ai-script", scope.creatorProfileId, 15, "1 h");
+  if (!rateLimit.allowed) {
+    return {
+      status: "error",
+      message: `Limite de gerações por hora atingido. Tente de novo em ${Math.ceil(rateLimit.retryAfterSeconds / 60)} min.`,
+    };
+  }
+
   const v = new Validator(formData);
 
   const productId = v.id("productId", "Produto");

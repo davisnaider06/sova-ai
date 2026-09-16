@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { creatorScope, profileScope, sellerScope } from "@/lib/scoped-db";
 import { evaluateAccess, isBootstrapAdmin, linkSubscriptionByEmail } from "@/lib/subscription";
+import { enforceRateLimit } from "@/lib/rate-limit";
 import type {
   CreatorProfile,
   Profile,
@@ -57,6 +58,13 @@ const SESSION_INCLUDE = {
 export const ensureUser = cache(async (): Promise<SessionUser | null> => {
   const { userId } = await auth();
   if (!userId) return null;
+
+  // Teto geral por conta autenticada — aqui, e não em `requireUser()`, porque
+  // esta função é o ponto comum de verdade: toda página, Server Action e rota
+  // (ex: o polling de notificações, que chama `ensureUser` direto) passa por
+  // aqui. `cache()` do React garante uma única checagem por requisição mesmo
+  // com várias chamadas na mesma navegação.
+  await enforceRateLimit("session", userId, 120, "1 m");
 
   const existing = await prisma.user.findUnique({
     where: { id: userId },

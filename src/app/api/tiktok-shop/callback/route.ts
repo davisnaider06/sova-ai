@@ -4,6 +4,7 @@ import { exchangeCodeForTokens, describeWrongUserType, missingScopes } from "@/l
 import { consumeState } from "@/lib/tiktok-shop/state";
 import { saveConnection } from "@/lib/tiktok-shop/connection";
 import { recordAudit } from "@/lib/audit";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 // ---------------------------------------------------------------------------
 // Callback do OAuth de creator da Affiliate Creator API.
@@ -25,6 +26,11 @@ function back(request: NextRequest, params: Record<string, string>) {
 }
 
 export async function GET(request: NextRequest) {
+  const rateLimit = await checkRateLimit("tiktok-shop-callback", getClientIp(request), 20, "1 m");
+  if (!rateLimit.allowed) {
+    return back(request, { tiktokshop: "erro", motivo: "Muitas tentativas. Aguarde um instante." });
+  }
+
   const params = request.nextUrl.searchParams;
 
   // 1. O TikTok pode voltar com erro — cancelamento do creator, por exemplo.

@@ -1,7 +1,24 @@
+import { timingSafeEqual } from "node:crypto";
 import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { EVENT_EFFECT, parseHublaEvent, readEventType } from "@/lib/hubla";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import type { Prisma, SubscriptionStatus } from "@/generated/prisma";
+
+/// Compara em tempo constante — o token é curto e fixo, então uma comparação
+/// `!==` normal vaza, por timing, quantos bytes iniciais já acertaram.
+function tokenMatches(presented: string | null, expected: string): boolean {
+  if (!presented) return false;
+  const a = Buffer.from(presented);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length) {
+    // Ainda gasta o tempo de uma comparação de verdade, só não chama
+    // timingSafeEqual com tamanhos diferentes (ela lança nesse caso).
+    timingSafeEqual(b, b);
+    return false;
+  }
+  return timingSafeEqual(a, b);
+}
 
 // ---------------------------------------------------------------------------
 // Webhook da Hubla — é ele que libera o acesso depois do pagamento.
@@ -23,6 +40,13 @@ import type { Prisma, SubscriptionStatus } from "@/generated/prisma";
 // ---------------------------------------------------------------------------
 
 export async function POST(req: NextRequest) {
+  // Teto por IP antes de qualquer outra checagem — é o que segura tentativa
+  // de força bruta no token, já que a Hubla não usa assinatura HMAC.
+  const rateLimit = await checkRateLimit("webhook-hubla", getClientIp(req), 60, "1 m");
+  if (!rateLimit.allowed) {
+    return Response.json({ error: "muitas requisições" }, { status: 429 });
+  }
+
   const expected = process.env.HUBLA_WEBHOOK_TOKEN;
   if (!expected) {
     console.error("[hubla] HUBLA_WEBHOOK_TOKEN não configurada");
@@ -30,14 +54,15 @@ export async function POST(req: NextRequest) {
   }
 
   // A Hubla não documenta publicamente qual cabeçalho carrega o token, então
-  // aceitamos os formatos plausíveis. Todos comparados contra o mesmo segredo.
+  // aceitamos os formatos plausíveis. Todos comparados contra o mesmo segredo,
+  // em tempo constante.
   const auth = req.headers.get("authorization");
   const presented =
     req.headers.get("x-hubla-token") ??
     req.headers.get("x-hubla-signature") ??
     (auth?.startsWith("Bearer ") ? auth.slice(7) : auth);
 
-  if (presented !== expected) {
+  if (!tokenMatches(presented, expected)) {
     return Response.json({ error: "não autorizado" }, { status: 401 });
   }
 

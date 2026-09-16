@@ -4,6 +4,7 @@ import { exchangeCodeForTokens } from "@/lib/tiktok/oauth";
 import { consumeState } from "@/lib/tiktok/state";
 import { saveConnection } from "@/lib/tiktok/connection";
 import { recordAudit } from "@/lib/audit";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 // ---------------------------------------------------------------------------
 // Callback do OAuth do TikTok.
@@ -35,6 +36,14 @@ function back(request: NextRequest, params: Record<string, string>) {
 }
 
 export async function GET(request: NextRequest) {
+  // Rota pública (o navegador chega aqui vindo do TikTok, sem sessão
+  // necessariamente estabelecida ainda) — limite por IP antes de qualquer
+  // outra coisa, inclusive antes do handling de erro.
+  const rateLimit = await checkRateLimit("tiktok-callback", getClientIp(request), 20, "1 m");
+  if (!rateLimit.allowed) {
+    return back(request, { tiktok: "erro", motivo: "Muitas tentativas. Aguarde um instante." });
+  }
+
   const params = request.nextUrl.searchParams;
 
   // 1. O TikTok pode voltar com erro — cancelamento do usuário, por exemplo.
